@@ -463,7 +463,7 @@ def mostrar_resultados(contagem_por_motorista, viagens_completas, total_viagens,
     tree_detalhes.grid(row=0, column=0, sticky="nsew")
 
 
-# =========================
+# ========================= 
 # FUNÇÃO PRINCIPAL
 # =========================
 
