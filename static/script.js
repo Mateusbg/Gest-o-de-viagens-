@@ -5,6 +5,55 @@ const usuariosDB = [
     { id: 3, email: 'operacao', senha: '123456', nome: 'Gerente de Operações' }
 ];
 
+// ===== FUNÇÕES DE LOGIN =====
+function handleLogin() {
+    const email = document.getElementById('emailInput').value;
+    const senha = document.getElementById('senhaInput').value;
+
+    if (!email || !senha) {
+        alert("Preencha usuário e senha");
+        return;
+    }
+
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('mainNavbar').classList.remove('hidden');
+
+    goToSectors(); // padrão após login
+}
+
+// ===== NAVEGAÇÃO DE TELAS =====
+function goToSectors() {
+    hideAllScreens();
+    document.getElementById('sectorsScreen').classList.remove('hidden');
+}
+
+function goToCobli() {
+    hideAllScreens();
+    document.getElementById('cobliScreen').classList.remove('hidden');
+}
+
+// Esconde todas as telas
+function hideAllScreens() {
+    const screens = [
+        'sectorsScreen',
+        'indicatorsScreen',
+        'cobliScreen'
+    ];
+
+    screens.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+}
+
+// Função para lidar com logout
+function handleLogout() {
+    hideAllScreens();
+    document.getElementById('mainNavbar').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+
 const setores = [
     {
         id: 1,

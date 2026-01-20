@@ -33,9 +33,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 TONELADAS_POR_VEICULO = {
     'SK-01': 68,
     'SK-02': 68,
-    'SK-03': 70,
-    'SK-04': 70,
-    'SK-05': 65,
+    'SK-03': 68,
+    'SK-04': 68,
+    'SK-05': 68,
 }
 TONELAGEM_PADRAO = 68
 

@@ -10,23 +10,35 @@
     <link rel="stylesheet" href="/static/cobli-styles.css">
 </head>
 <body>
+    <!-- NAVBAR GLOBAL (após login) -->
+<nav id="mainNavbar" class="navbar hidden">
+    <div class="navbar-container">
+        <div class="logo">Brasitalia</div>
+        <ul class="nav-links">
+            <li><a href="#" onclick="goToSectors()">Setores</a></li>
+            <li><a href="#" onclick="goToCobli()">Cobli</a></li>
+        </ul>
+        <button class="logout-btn" onclick="handleLogout()">🚪 Sair</button>
+    </div>
+</nav>
+
     <!-- TELA DE LOGIN -->
     <div id="loginScreen" class="login-container">
         <div class="login-box">
             <div class="login-header">
-                <h1>Dashboard</h1>
+                <h1>Brasitalia</h1>
                 <p>Sistema de Indicadores</p>
             </div>
 
             <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="emailInput" placeholder="seu@email.com">
+                <label>User</label>
+                <input type="email" id="emailInput" placeholder="email">
             </div>
 
             <div class="form-group">
                 <label>Senha</label>
                 <div class="password-toggle">
-                    <input type="password" id="senhaInput" placeholder="Digite sua senha">
+                    <input type="password" id="senhaInput" placeholder="senha">
                     <button onclick="togglePassword()" type="button">👁️</button>
                 </div>
             </div>
@@ -45,6 +57,8 @@
                 </div>
                 <button class="logout-btn" onclick="handleLogout()">🚪 Sair</button>
             </div>
+    </nav>
+
         </header>
 
         <div class="sectors-container">
@@ -72,6 +86,8 @@
             </div>
         </div>
     </div>
+
+
 
     <!-- TELA DE INDICADORES -->
     <div id="indicatorsScreen" class="hidden">
