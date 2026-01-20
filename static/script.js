@@ -1,6 +1,6 @@
 // ===== BASE DE DADOS =====
 const usuariosDB = [
-    { id: 1, email: 'admin', senha: '1120', nome: 'Administrador' },
+    { id: 1, email: 'ad', senha: '1120', nome: 'Administrador' },
     { id: 2, email: 'vendas', senha: '123456', nome: 'Gerente de Vendas' },
     { id: 3, email: 'operacao', senha: '123456', nome: 'Gerente de Operações' }
 ];
@@ -11,97 +11,251 @@ const setores = [
         nome: 'Ambiental',
         classe: 'sector-blue',
         indicadores: [
-            { id: 1, nome: 'Custo mensal Transpedra(pneus + combustivel)', valor: '', unidade: 'R$/ton', meta: 150000 },
+            { id: 1, nome: 'Custo mensal Transpedra (pneus + combustível) (R$/ton transportada) ', valor: '', unidade: 'R$/ton', meta: 150000 },
             { id: 2, nome: 'Número de ocorrencias ambientais', valor: '', unidade: 'un', meta: 50 },
-            { id: 3, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+            { id: 3, nome: 'Número de ocorrencias ambientais', valor: '', unidade: 'un', meta: 5 },
+            { id: 4, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
         ]
     },
     {
         id: 2,
-        nome: 'Operações',
+        nome: 'Balança',
         classe: 'sector-green',
         indicadores: [
-            { id: 1, nome: 'Tempo Médio de Atendimento', valor: '', unidade: 'min', meta: 5 },
-            { id: 2, nome: 'Taxa de Erro', valor: '', unidade: '%', meta: 2 },
-            { id: 3, nome: 'Produtividade', valor: '', unidade: '%', meta: 95 },
-            { id: 4, nome: 'Custo Operacional', valor: '', unidade: 'R$', meta: 50000 }
+            { id: 1, nome: 'Tempo Médio de Atendimento ao cliente (minutos)', valor: '', unidade: 'min', meta: 5 },
+            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' },
         ]
     },
     {
         id: 3,
-        nome: 'Marketing',
+        nome: 'Betume - JN',
         classe: 'sector-purple',
         indicadores: [
-            { id: 1, nome: 'Leads Gerados', valor: '', unidade: 'un', meta: 100 },
-            { id: 2, nome: 'CTR (Click Through Rate)', valor: '', unidade: '%', meta: 8 },
-            { id: 3, nome: 'ROI Campanhas', valor: '', unidade: '%', meta: 400 },
-            { id: 4, nome: 'Custo por Lead', valor: '', unidade: 'R$', meta: 50 }
+            { id: 1, nome: 'Consumo de energia Betume João Neiva (kwh/ton)', valor: '', unidade: 'kwh/ton', meta: 50 },
+            { id: 2, nome: 'Consumo de oleo BPF (L/ton)', valor: '', unidade: 'L/ton', meta: 5 },
+            { id: 3, nome: 'Economia de CAP Betume JN (%)', valor: '', unidade: '%', meta: 10 },
+            { id: 4, nome: 'Faturamento Betume Joao Neiva (R$)', valor: '', unidade: 'R$', meta: 500000 },
+            { id: 5, nome: 'Custo médio de manutenção R$/ton', valor: '', unidade: 'R$/ton', meta: 20 },
+            { id: 6, nome: 'Turnover acumulado Betume João Neiva (%)', valor: '', unidade: '%', meta: 5 },
+            { id: 7, nome: 'Laboratório - Tempo máx de envio de resultados (horas)', valor: '', unidade: 'horas', meta: 48 },
+            { id: 8, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
         ]
     },
     {
         id: 4,
-        nome: 'RH',
+        nome: 'Betume - Matriz',
         classe: 'sector-red',
         indicadores: [
-            { id: 1, nome: 'Turnover', valor: '', unidade: '%', meta: 5 },
-            { id: 2, nome: 'Taxa de Absenteísmo', valor: '', unidade: '%', meta: 2 },
-            { id: 3, nome: 'Satisfação Colaboradores', valor: '', unidade: '/10', meta: 8 },
-            { id: 4, nome: 'Treinamentos Realizados', valor: '', unidade: 'un', meta: 20 }
+            { id: 1, nome: 'Consumo de gás Betume Matriz (m³/ton)', valor: '', unidade: 'm³/ton', meta: 30 },
+            { id: 2, nome: 'Consumo de energia Betume Matriz (kwh/ton)', valor: '', unidade: 'kwh/ton', meta: 40 },
+            { id: 3, nome: 'Economia de CAP Betume Matriz (%)', valor: '', unidade: '%', meta: 8 },
+            { id: 4, nome: 'Absenteísmo Operacional Betume Matriz (%)', valor: '', unidade: '%', meta: 3 },
+            { id: 5, nome: 'Custo médio de manutenção Betume Matriz R$/ton', valor: '', unidade: 'R$/ton', meta: 25 },
+            { id: 6, nome: '% de reclamações revertidas - lab Betume', valor: '', unidade: '%', meta: 5 },
+            { id: 7, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+
         ]
     },
     {
         id: 5,
-        nome: 'Financeiro',
+        nome: 'Comercial',
         classe: 'sector-blue',
         indicadores: [
-            { id: 1, nome: 'Fluxo de Caixa', valor: '', unidade: 'R$', meta: 100000 },
-            { id: 2, nome: 'Margem de Lucro', valor: '', unidade: '%', meta: 20 },
-            { id: 3, nome: 'Contas a Pagar', valor: '', unidade: 'R$', meta: 30000 },
-            { id: 4, nome: 'Contas a Receber', valor: '', unidade: 'R$', meta: 80000 }
+            { id: 1, nome: 'Quantidade vendida (ton) - Brasitalia', valor: '', unidade: 'ton', meta: 10000 },
+            { id: 2, nome: 'Preço médio (R$) - Brasitalia', valor: '', unidade: 'R$', meta: 250 },
+            { id: 3, nome: '% pó de pedra - Brasitalia', valor: '', unidade: '%', meta: 5 },
+            { id: 4, nome: 'Número de clientes novos Brasitalia + Betume', valor: '', unidade: 'un', meta: 10 },
+            { id: 5, nome: 'Número de clientes mantidos Brasitalia + Betume', valor: '', unidade: 'un', meta: 50 },
+            { id: 6, nome: 'Preço médio (R$) - Produtos sem CAP convencional ou polímero - Betume', valor: '', unidade: 'R$', meta: 300 },
+            { id: 7, nome: 'Preço médio (R$) - Produtos com CAP convencional - Betume', valor: '', unidade: 'R$', meta: 350 },
+            { id: 8, nome: 'Quantidade vendida (ton) - Betume Matriz', valor: '', unidade: 'ton', meta: 8000 },
+            { id: 9, nome: 'Faturamento (R$) - Betume joao neiva', valor: '', unidade: 'R$', meta: 400000 },
+            { id: 10, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
         ]
     },
     {
         id: 6,
-        nome: 'Posto Fiscal',
+        nome: 'Compras',
         classe: 'sector-green',
         indicadores: [
-            { id: 1, nome: 'Tempo de Entrega', valor: '', unidade: 'dias', meta: 3 },
-            { id: 2, nome: 'Custo de Transporte', valor: '', unidade: 'R$', meta: 20000 },
-            { id: 3, nome: 'Índice de Devolução', valor: '', unidade: '%', meta: 1 },
-            { id: 4, nome: 'Nível de Estoque', valor: '', unidade: 'un', meta: 5000 }
+            { id: 1, nome: 'índice de economia em compras (%)', valor: '', unidade: '%', meta: 5 },
+            { id: 2, nome: 'Tempo de colocação do pedido de compra (dias)', valor: '', unidade: 'dias', meta: 3 },
+            { id: 3, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
         ]
     },
     {
         id: 7,
-        nome: 'TI',
+        nome: 'Compras - Paulão',
         classe: 'sector-purple',
         indicadores: [
-            { id: 1, nome: 'Tempo de Resolução de Incidentes', valor: '', unidade: 'horas', meta: 4 },
-            { id: 2, nome: 'Uptime dos Sistemas', valor: '', unidade: '%', meta: 99.9 },
-            { id: 3, nome: 'Satisfação dos Usuários', valor: '', unidade: '/10', meta: 9 },
-            { id: 4, nome: 'Número de Incidentes', valor: '', unidade: 'un', meta: 10 }
+            { id: 1, nome: 'Consumo de combustível Paulão (L/Km)', valor: '', unidade: 'L/Km', meta: 10 },
+            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
         ]
     },
     {
         id: 8,
-        nome: 'Balança',
+        nome: 'Conferencia ',
         classe: 'sector-red',
         indicadores: [
-            { id: 1, nome: 'NPS (Net Promoter Score)', valor: '', unidade: '/10', meta: 8 },
-            { id: 2, nome: 'Tempo Médio de Resposta', valor: '', unidade: 'min', meta: 2 },
-            { id: 3, nome: 'Taxa de Resolução na Primeira Chamada', valor: '', unidade: '%', meta: 85 },
-            { id: 4, nome: 'Volume de Chamadas', valor: '', unidade: 'un', meta: 1000 }
+            { id: 1, nome: 'Número de ocorrências de cliente levar produto errado (uni)', valor: '', unidade: 'un', meta: 2 },
+            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
         ]
     },
     {
         id: 9,
-        nome: 'Compras',
+        nome: 'Desmonte',
         classe: 'sector-blue',
         indicadores: [
-            { id: 1, nome: 'Custo por Envio', valor: '', unidade: 'R$', meta: 15 },
-            { id: 2, nome: 'Taxa de Entrega no Prazo', valor: '', unidade: '%', meta: 98 },
-            { id: 3, nome: 'Índice de Danos na Entrega', valor: '', unidade: '%', meta: 0.5 },
-            { id: 4, nome: 'Eficiência de Roteirização', valor: '', unidade: '%', meta: 90 }
+            { id: 1, nome: 'Absenteísmo do desmonte (%)', valor: '', unidade: '%', meta: 3 },
+            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 10,
+        nome: 'Estoque',
+        classe: 'sector-green',
+        indicadores: [
+            { id: 1, nome: 'sem indicador definido', valor: '', unidade: 'un', meta: 0 },
+            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 11,
+        nome: 'Faxineiras',
+        classe: 'sector-purple',
+        indicadores: [
+            { id: 1, nome: 'Custo com material de limpeza (R$)', valor: '', unidade: 'R$', meta: 2000 },
+            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 12,
+        nome: 'Financeiro',
+        classe: 'sector-red',
+        indicadores: [
+            { id: 1, nome: 'Número de pedidos de notas que financeiro pediu e já tinham descido' , valor: '', unidade: 'un', meta: 0 },
+            { id: 2, nome: 'Turnover setor financeiro (%)', valor: '', unidade: '%', meta: 5 },
+            { id: 3, nome: 'Número de títulos de inadimplência levados a cartório', valor: '', unidade: 'un', meta: 10 },
+            { id: 4, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 13,
+        nome: 'Lavador',
+        classe: 'sector-blue',
+        indicadores: [
+            { id: 1, nome: 'Custo lavador (R$)', valor: '', unidade: 'R$', meta: 5000 },
+            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 14,
+        nome: 'Oficina Mecanica',
+        classe: 'sector-green',
+        indicadores: [ 
+            { id: 1, nome: 'Absenteísmo oficina mecânica (%)', valor: '', unidade: '%', meta: 4 },
+            { id: 2, nome: 'Custo mensal borracharia (R$/ton produzidas)', valor: '', unidade: 'R$/ton', meta: 15 },
+            { id: 3, nome: 'Custo mensal com pneus Brasitalia (R$/ton produzida) ', valor: '', unidade: 'R$/ton', meta: 10 },
+            { id: 4, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 15,
+        nome: 'Oficina Solda',
+        classe: 'sector-purple',
+        indicadores: [
+            { id: 1, nome: 'Turnover Solda/caldeiraria (%)', valor: '', unidade: '%', meta: 5 },
+            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 16,
+        nome: 'Posto fiscal',
+        classe: 'sector-red',
+        indicadores: [
+            { id: 1, nome: '% de notas que desceram com atraso (%)', valor: '', unidade: '%', meta: 2 },
+            { id: 2, nome: 'Índice de erro no lançamento de NF (%)', valor: '', unidade: '%', meta: 1 },
+            { id: 3, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 17,
+        nome: 'Recepçao',
+        classe: 'sector-blue',
+        indicadores: [
+            { id: 1, nome: 'Indice de pontos atualizados e enviado no prazo(%)', valor: '', unidade: '%', meta: 98 },
+            { id: 2, nome: 'Número de erros na FOPAG relacionado ao ponto (uni)', valor: '', unidade: 'un', meta: 2 },
+            { id: 3, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 18,
+        nome: 'Suporte transpedra',
+        classe: 'sector-green',
+        indicadores: [
+            { id: 1, nome: 'Número de erros das paginas diárias (uni)', valor: '', unidade: 'un', meta: 5 },
+            { id: 2, nome: 'Entregar páginas diárias da transpedra no dia/hora certa (%)', valor: '', unidade: '%', meta: 99 },
+            { id: 3, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 19,
+        nome: 'RH',
+        classe: 'sector-purple',
+        indicadores: [
+            { id: 1, nome: 'Índice de efetividade das contratações (%)', valor: '', unidade: '%', meta: 90 },
+            { id: 2, nome: 'Absenteísmo mensal do setor RH + recepção + faxineiras (%)', valor: '', unidade: '%', meta: 3 },
+            { id: 3, nome: 'Índice de erro na FOPAG/ticket alimentação (%)', valor: '', unidade: '%', meta: 1 },
+            { id: 4, nome: 'Turnover acumulado do setor RH + recepção + faxineiras (%)', valor: '', unidade: '%', meta: 5 },
+            { id: 5, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 20,
+        nome: 'Segurança do Trabalho(SESMT)',
+        classe: 'sector-red',
+        indicadores: [
+            { id: 1, nome: 'Número de notificações de órgãos ', valor: '', unidade: 'un', meta: 0 },
+            { id: 2, nome: 'Número de acidentes dentro da empresa (un)', valor: '', unidade: 'un', meta: 2 },
+            { id: 3, nome: 'Número de acidentes dentro da empresa com afastamento (un)', valor: '', unidade: 'un', meta: 1 },
+            { id: 4, nome: 'Absenteísmo viveiristas (%)', valor: '', unidade: '%', meta: 3 },
+            { id: 5, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 21,
+        nome: 'TI',
+        classe: 'sector-blue',
+        indicadores: [
+            { id: 1, nome: 'Nota de satisfação com qualidade do atendimento - TI (/10)', valor: '', unidade: '/10', meta: 9 },
+            { id: 2, nome: 'Nota de satisfação com tempo de atendimento - TI (/10)', valor: '', unidade: '/10', meta: 9 },
+            { id: 3, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 22,
+        nome: 'Transpedra',
+        classe: 'sector-green',
+        indicadores: [
+            { id: 1, nome: 'Custo mensal com pneus Transpedra (R$/ton transportada) ', valor: '', unidade: 'R$/ton', meta: 10 },
+            { id: 2, nome: 'Consumo mensal de combustivel Transpedra (R$/ton transportada) ', valor: '', unidade: 'R$/ton', meta: 140000 },
+            { id: 3, nome: 'Produtividade - No de viagens totais motoristas Transpedra', valor: '', unidade: 'viagens', meta: 5000 },
+            { id: 4, nome: 'Turnover acumulado Transpedra (%)', valor: '', unidade: '%', meta: 5 },
+            { id: 5, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
+        ]
+    },
+    {
+        id: 23,
+        nome : 'Transporte Interno',
+        classe: 'sector-purple',
+        indicadores: [
+            { id: 1, nome: 'Toneladas produzidas/dia (ton)', valor: '', unidade: 'ton', meta: 3000 },
+            { id: 2, nome: 'Nota média de condução dos motoristas (un)', valor: '', unidade: 'un', meta: 95 },
+            { id: 3, nome: 'Custo com combustível (R$/ton produzida)', valor: '', unidade: 'R$/ton', meta: 20 },
+            { id: 4, nome: 'Custo de transporte (R$/ton produzida)', valor: '', unidade: 'R$/ton', meta: 30 },
+            { id: 5, nome: 'Absenteísmo operadores Rodrigo (%)', valor: '', unidade: '%', meta: 3 },
+            { id: 6, nome: 'Absenteísmo operadores Aloisio (%)', valor: '', unidade: '%', meta: 3 },
+            { id: 7, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
         ]
     }
 ];

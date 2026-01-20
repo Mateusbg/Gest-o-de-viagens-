@@ -2,7 +2,9 @@
    ESTILOS PARA TELA COBLI VIAGENS
    =================================== */
 
+   
 /* Botão especial Cobli na tela de setores */
+
 .sector-special {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
