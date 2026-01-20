@@ -1,8 +1,29 @@
-// ===== BASE DE DADOS =====
+S// ===== BASE DE DADOS =====
 const usuariosDB = [
     { id: 1, email: 'ad', senha: '1120', nome: 'Administrador' },
-    { id: 2, email: 'vendas', senha: '123456', nome: 'Gerente de Vendas' },
-    { id: 3, email: 'operacao', senha: '123456', nome: 'Gerente de Operações' }
+    { id: 2, email: 'compras', senha: '123456', nome: 'Supervisor de compras' },
+    { id: 3, email: 'operacao', senha: '123456', nome: 'Lider Operaçoes' },
+    { id: 4, email: 'ambiental', senha: '123456', nome: 'Ambiental'},
+    { id: 5, email: 'balanca', senha: '123456', nome: 'Lider balança'},
+    { id: 6, email: 'betumejn', senha: '123456', nome: 'Lider Betume JN'},
+    { id: 7, email: 'betume', senha: '123456', nome: 'Lider Betume Matriz'},
+    { id: 8, email: 'comercial', senha: '123456', nome: 'Lider comercial'},
+    { id: 9, email: 'comprasp', senha: '123456', nome: 'Compras - Paulão'},
+    { id: 10, email: 'conferencia', senha: '123456', nome: 'Conferencia'},
+    { id: 11, email: 'desmonte', senha: '123456', nome: 'Lider desmonte'},
+    { id: 12, email: 'estoque', senha: '123456', nome: 'Daniel'},
+    { id: 13, email: 'faxineiras', senha: '123456', nome: 'faxineiras'},
+    { id: 14, email: 'financeiro', senha: '123456', nome: 'Lider Financeiro'},
+    { id: 15, email: 'lavador', senha: '123456', nome: 'Lider Lavador'},
+    { id: 16, email: 'mecanica', senha: '123456', nome: 'Otavio'},
+    { id: 17, email: 'solda', senha: '123456', nome: 'Priscilla'},
+    { id: 18, email: 'postofiscal', senha: '123456', nome: 'Posto fiscal'},
+    { id: 19, email: 'recepcao', senha: '123456', nome: 'Recepcao'},
+    { id: 20, email: 'suportet', senha: '123456', nome: 'Suporte Transpedra'},
+    { id: 21, email: 'rh', senha: '123456', nome: 'Camila'},
+    { id: 22, email: 'sesmt', senha: '123456', nome: 'SESMT'},
+    { id: 23, email: 'TI', senha: '123456', nome: 'Julio'},
+    { id: 24, email: 'tranportei', senha: '123456', nome: 'Transporte Interno'},
 ];
 
 // ===== FUNÇÕES DE LOGIN =====

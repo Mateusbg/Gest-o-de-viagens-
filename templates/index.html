@@ -10,17 +10,6 @@
     <link rel="stylesheet" href="/static/cobli-styles.css">
 </head>
 <body>
-    <!-- NAVBAR GLOBAL (após login) -->
-<nav id="mainNavbar" class="navbar hidden">
-    <div class="navbar-container">
-        <div class="logo">Brasitalia</div>
-        <ul class="nav-links">
-            <li><a href="#" onclick="goToSectors()">Setores</a></li>
-            <li><a href="#" onclick="goToCobli()">Cobli</a></li>
-        </ul>
-        <button class="logout-btn" onclick="handleLogout()">🚪 Sair</button>
-    </div>
-</nav>
 
     <!-- TELA DE LOGIN -->
     <div id="loginScreen" class="login-container">
@@ -57,8 +46,17 @@
                 </div>
                 <button class="logout-btn" onclick="handleLogout()">🚪 Sair</button>
             </div>
-    </nav>
-
+                <!-- NAVBAR GLOBAL (após login) -->
+<nav id="mainNavbar" class="navbar hidden">
+    <div class="navbar-container">
+        <div class="logo">Brasitalia</div>
+        <ul class="nav-links">
+            <li><a href="#" onclick="goToSectors()">Setores</a></li>
+            <li><a href="#" onclick="goToCobli()">Cobli</a></li>
+        </ul>
+        <button class="logout-btn" onclick="handleLogout()">🚪 Sair</button>
+    </div>
+</nav>
         </header>
 
         <div class="sectors-container">

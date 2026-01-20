@@ -316,13 +316,13 @@ def upload_file():
             'success': False,
             'error': f'Erro no servidor: {str(e)}'
         }), 500
-## if __name__ == '__main__':
-   # print("=" * 70)
-   # print("🚀 SERVIDOR FLASK INICIADO")
-   # print("=" * 70)
-   # print("📍 Acesse: http://127.0.0.1:5000")
-   # print("🔧 Debug: ATIVO (sem reloader)")
-   # print("=" * 70)
-   # app.run(debug=True, port=5000, host='127.0.0.1', use_reloader=False)
+if __name__ == '__main__':
+    print("=" * 70)
+    print("🚀 SERVIDOR FLASK INICIADO")
+    print("=" * 70)
+    print("📍 Acesse: http://127.0.0.1:5000")
+    print("🔧 Debug: ATIVO (sem reloader)")
+    print("=" * 70)
+    app.run(debug=True, port=5000, host='127.0.0.1', use_reloader=False)
  
-app = app  # Exporte a aplicação Flask como 'app' para Vercel
+## app = app  # Exporte a aplicação Flask como 'app' para Vercel
