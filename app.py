@@ -8,7 +8,13 @@ Data: 07/01/2026
 Version: 3.1 (CORRIGIDO)
 ===========================================================
 """
+from dotenv import load_dotenv
+from pathlib import Path
 
+# Carrega variáveis do .env SEM depender do diretório em que o comando foi executado.
+# (Quando roda via VSCode/serviço, o CWD pode ser diferente e o .env não é encontrado.)
+_ROOT = Path(__file__).resolve().parent
+load_dotenv(dotenv_path=_ROOT / ".env", override=False)
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 import os
@@ -282,17 +288,103 @@ def get_db_connection():
     password = os.getenv("SQL_PASSWORD", "")
     trusted = os.getenv("SQL_TRUSTED_CONNECTION", "false").lower() in ("1","true","yes","y")
 
+    # Driver 18 costuma exigir Encrypt; no SSMS você marcou "Certificado do Servidor de Confiança".
+    # Mantemos configurável por env, mas com defaults seguros para ambiente corporativo.
+    encrypt = os.getenv("SQL_ENCRYPT", "yes").lower() in ("1","true","yes","y")
+    trust_cert = os.getenv("SQL_TRUST_CERT", "yes").lower() in ("1","true","yes","y")
+
     if not server or not database:
         raise RuntimeError("SQL_SERVER e SQL_DATABASE não configurados.")
 
+    enc_part = "Encrypt=yes;" if encrypt else "Encrypt=no;"
+    trust_part = "TrustServerCertificate=yes;" if trust_cert else "TrustServerCertificate=no;"
+
     if trusted:
-        conn_str = f"DRIVER={{{driver}}};SERVER={server};DATABASE={database};Trusted_Connection=yes;TrustServerCertificate=yes;"
+        conn_str = (
+            f"DRIVER={{{driver}}};"
+            f"SERVER={server};"
+            f"DATABASE={database};"
+            "Trusted_Connection=yes;"
+            + enc_part + trust_part
+        )
     else:
         if not user or not password:
             raise RuntimeError("SQL_USER e SQL_PASSWORD não configurados.")
-        conn_str = f"DRIVER={{{driver}}};SERVER={server};DATABASE={database};UID={user};PWD={password};TrustServerCertificate=yes;"
+
+        conn_str = (
+            f"DRIVER={{{driver}}};"
+            f"SERVER={server};"
+            f"DATABASE={database};"
+            f"UID={user};PWD={password};"
+            + enc_part + trust_part
+        )
 
     return pyodbc.connect(conn_str)
+
+
+def _get_or_create_setor(cur, setor_id, setor_nome):
+    if setor_id:
+        return int(setor_id)
+    if not setor_nome:
+        raise ValueError("setorId ou setorNome é obrigatório")
+    cur.execute("SELECT TOP 1 ZSE_ID FROM ZSE WHERE ZSE_NOME = ?", setor_nome)
+    row = cur.fetchone()
+    if row:
+        return int(row[0])
+    cur.execute("INSERT INTO ZSE (ZSE_NOME, ZSE_ATIVO) VALUES (?, 1)", setor_nome)
+    cur.execute("SELECT SCOPE_IDENTITY()")
+    return int(cur.fetchone()[0])
+
+
+def _get_or_create_funcionario(cur, funcionario_id, funcionario_email, funcionario_nome, setor_id=None, perfil=None):
+    if funcionario_id:
+        return int(funcionario_id)
+    # email é o identificador mais estável
+    if funcionario_email:
+        cur.execute("SELECT TOP 1 ZFU_ID FROM ZFU WHERE ZFU_EMAIL = ?", funcionario_email)
+        row = cur.fetchone()
+        if row:
+            return int(row[0])
+    if not funcionario_nome and not funcionario_email:
+        raise ValueError("funcionarioId ou funcionarioEmail/funcionarioNome é obrigatório")
+    cur.execute(
+        "INSERT INTO ZFU (ZFU_NOME, ZFU_EMAIL, ZFU_SETOR_ID, ZFU_PERFIL, ZFU_ATIVO) VALUES (?, ?, ?, ?, 1)",
+        funcionario_nome or funcionario_email,
+        funcionario_email,
+        setor_id,
+        perfil,
+    )
+    cur.execute("SELECT SCOPE_IDENTITY()")
+    return int(cur.fetchone()[0])
+
+
+def _get_or_create_indicador(cur, indicador_id, setor_id, codigo, nome, tipo=None, unidade=None, meta=None):
+    if indicador_id:
+        return int(indicador_id)
+    if not setor_id:
+        raise ValueError("setorId é obrigatório para indicador")
+    # código local por setor ajuda a manter estabilidade
+    if codigo is None:
+        raise ValueError("indicadorId ou indicadorCodigo é obrigatório")
+    cur.execute(
+        "SELECT TOP 1 ZIN_ID FROM ZIN WHERE ZIN_SETOR_ID = ? AND ZIN_CODIGO = ?",
+        setor_id,
+        str(codigo),
+    )
+    row = cur.fetchone()
+    if row:
+        return int(row[0])
+    cur.execute(
+        "INSERT INTO ZIN (ZIN_SETOR_ID, ZIN_CODIGO, ZIN_NOME, ZIN_TIPO, ZIN_UNIDADE, ZIN_META, ZIN_ATIVO) VALUES (?, ?, ?, ?, ?, ?, 1)",
+        setor_id,
+        str(codigo),
+        nome,
+        tipo,
+        unidade,
+        meta,
+    )
+    cur.execute("SELECT SCOPE_IDENTITY()")
+    return int(cur.fetchone()[0])
 
 def _rows_to_dicts(cursor, rows):
     cols = [c[0] for c in cursor.description]
@@ -347,12 +439,16 @@ def api_salvar_valores():
     """Salva valores (uso típico: líder/gestão)."""
     payload = request.get_json(force=True, silent=True) or {}
     setor_id = payload.get("setorId")
+    setor_nome = payload.get("setorNome")
     funcionario_id = payload.get("funcionarioId")
+    funcionario_email = payload.get("funcionarioEmail")
+    funcionario_nome = payload.get("funcionarioNome")
+    funcionario_perfil = payload.get("funcionarioPerfil")
     periodo = payload.get("periodo")  # 'YYYY-MM-01' ou 'YYYY-MM'
     valores = payload.get("valores") or []
 
-    if not setor_id or not funcionario_id or not periodo or not isinstance(valores, list):
-        return jsonify({"error": "Campos obrigatórios: setorId, funcionarioId, periodo, valores[]"}), 400
+    if (not setor_id and not setor_nome) or (not funcionario_id and not (funcionario_email or funcionario_nome)) or not periodo or not isinstance(valores, list):
+        return jsonify({"error": "Campos obrigatórios: setorId/setorNome, funcionarioId/funcionarioEmail, periodo, valores[]"}), 400
 
     # normaliza periodo para primeiro dia do mês
     try:
@@ -368,11 +464,38 @@ def api_salvar_valores():
 
     with get_db_connection() as conn:
         cur = conn.cursor()
+        setor_id_db = _get_or_create_setor(cur, setor_id, setor_nome)
+        funcionario_id_db = _get_or_create_funcionario(
+            cur,
+            funcionario_id,
+            funcionario_email,
+            funcionario_nome,
+            setor_id=setor_id_db,
+            perfil=funcionario_perfil,
+        )
+
         for item in valores:
             ind_id = item.get("indicadorId")
+            ind_codigo = item.get("indicadorCodigo")
+            ind_nome = item.get("indicadorNome")
+            ind_tipo = item.get("tipo")
+            ind_unidade = item.get("unidade")
+            ind_meta = item.get("meta")
             valor = item.get("valor")
-            if not ind_id:
+
+            if not ind_id and ind_codigo is None:
                 continue
+
+            ind_id_db = _get_or_create_indicador(
+                cur,
+                ind_id,
+                setor_id_db,
+                ind_codigo,
+                ind_nome or f"Indicador {ind_codigo}",
+                tipo=ind_tipo,
+                unidade=ind_unidade,
+                meta=ind_meta,
+            )
             # upsert simples por indicador/setor/periodo
             cur.execute("""
                 MERGE ZIV AS tgt
@@ -383,8 +506,8 @@ def api_salvar_valores():
                 WHEN NOT MATCHED THEN
                     INSERT (ZIV_INDICADOR_ID, ZIV_SETOR_ID, ZIV_FUNCIONARIO_ID, ZIV_PERIODO, ZIV_VALOR, ZIV_CRIADO_EM, ZIV_ATUALIZADO_EM)
                     VALUES (?, ?, ?, ?, ?, ?, ?);
-            """, ind_id, setor_id, periodo_date, str(valor) if valor is not None else None, now, funcionario_id,
-                 ind_id, setor_id, funcionario_id, periodo_date, str(valor) if valor is not None else None, now, now)
+            """, ind_id_db, setor_id_db, periodo_date, str(valor) if valor is not None else None, now, funcionario_id_db,
+                 ind_id_db, setor_id_db, funcionario_id_db, periodo_date, str(valor) if valor is not None else None, now, now)
         conn.commit()
 
     return jsonify({"ok": True})
@@ -394,12 +517,16 @@ def api_salvar_draft():
     """Salva rascunho (uso típico: usuário padrão)."""
     payload = request.get_json(force=True, silent=True) or {}
     setor_id = payload.get("setorId")
+    setor_nome = payload.get("setorNome")
     funcionario_id = payload.get("funcionarioId")
+    funcionario_email = payload.get("funcionarioEmail")
+    funcionario_nome = payload.get("funcionarioNome")
+    funcionario_perfil = payload.get("funcionarioPerfil")
     periodo = payload.get("periodo")
     valores = payload.get("valores") or []
 
-    if not setor_id or not funcionario_id or not periodo or not isinstance(valores, list):
-        return jsonify({"error": "Campos obrigatórios: setorId, funcionarioId, periodo, valores[]"}), 400
+    if (not setor_id and not setor_nome) or (not funcionario_id and not (funcionario_email or funcionario_nome)) or not periodo or not isinstance(valores, list):
+        return jsonify({"error": "Campos obrigatórios: setorId/setorNome, funcionarioId/funcionarioEmail, periodo, valores[]"}), 400
 
     try:
         if len(periodo) == 7:
@@ -414,15 +541,51 @@ def api_salvar_draft():
 
     with get_db_connection() as conn:
         cur = conn.cursor()
+        setor_id_db = _get_or_create_setor(cur, setor_id, setor_nome)
+        funcionario_id_db = _get_or_create_funcionario(
+            cur,
+            funcionario_id,
+            funcionario_email,
+            funcionario_nome,
+            setor_id=setor_id_db,
+            perfil=funcionario_perfil,
+        )
+
         for item in valores:
             ind_id = item.get("indicadorId")
+            ind_codigo = item.get("indicadorCodigo")
+            ind_nome = item.get("indicadorNome")
+            ind_tipo = item.get("tipo")
+            ind_unidade = item.get("unidade")
+            ind_meta = item.get("meta")
             valor = item.get("valor")
-            if not ind_id:
+
+            if not ind_id and ind_codigo is None:
                 continue
-            cur.execute("""
+
+            ind_id_db = _get_or_create_indicador(
+                cur,
+                ind_id,
+                setor_id_db,
+                ind_codigo,
+                ind_nome or f"Indicador {ind_codigo}",
+                tipo=ind_tipo,
+                unidade=ind_unidade,
+                meta=ind_meta,
+            )
+
+            cur.execute(
+                """
                 INSERT INTO ZDR (ZDR_INDICADOR_ID, ZDR_SETOR_ID, ZDR_FUNCIONARIO_ID, ZDR_PERIODO, ZDR_VALOR, ZDR_CRIADO_EM)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, ind_id, setor_id, funcionario_id, periodo_date, str(valor) if valor is not None else None, now)
+                """,
+                ind_id_db,
+                setor_id_db,
+                funcionario_id_db,
+                periodo_date,
+                str(valor) if valor is not None else None,
+                now,
+            )
         conn.commit()
 
     return jsonify({"ok": True})

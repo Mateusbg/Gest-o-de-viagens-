@@ -286,6 +286,81 @@ const setores = [
 let currentUser = null;
 let currentSector = null;
 let registrosDB = [];
+
+// ===== PERFIL / REGRAS =====
+function getUserPerfil(user) {
+    if (!user) return 'USER';
+    const nome = (user.nome || '').toLowerCase();
+    const email = (user.email || '').toLowerCase();
+    if (email === 'ad' || nome.includes('administrador') || email === 'ti') return 'GESTAO';
+    if (nome.includes('lider')) return 'LIDER';
+    return 'USER';
+}
+
+function normalizeKey(s) {
+    return (s || '')
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '');
+}
+
+function getAllowedSectorIds(user) {
+    const perfil = getUserPerfil(user);
+    if (perfil === 'GESTAO') return null; // todos
+
+    const emailKey = normalizeKey(user?.email);
+    // tenta achar setor que "bate" com o email (ambiental -> Ambiental, balanca -> Balança, etc.)
+    const matched = setores
+        .filter(s => {
+            const sk = normalizeKey(s.nome);
+            return sk.includes(emailKey) || emailKey.includes(sk);
+        })
+        .map(s => s.id);
+
+    return matched.length ? matched : null; // fallback: todos
+}
+
+function getPeriodoAtualOuDoFormulario() {
+    // procura um campo do tipo date ("Mês"/"Data") para extrair YYYY-MM
+    const dateInd = currentSector?.indicadores?.find(i => i.tipo === 'date' || i.unidade === 'date');
+    if (dateInd?.valor && typeof dateInd.valor === 'string') {
+        // valor em ISO: YYYY-MM-DD
+        const parts = dateInd.valor.split('-');
+        if (parts.length >= 2) return `${parts[0]}-${parts[1]}`;
+    }
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+}
+
+function buildValoresPayload() {
+    // NÃO envia o campo date como indicador de valor
+    return (currentSector?.indicadores || [])
+        .filter(i => !(i.tipo === 'date' || i.unidade === 'date'))
+        .map(i => ({
+            indicadorCodigo: i.id,
+            indicadorNome: i.nome,
+            tipo: i.tipo || (i.unidade === 'date' ? 'date' : 'number'),
+            unidade: i.unidade || null,
+            meta: i.meta ?? null,
+            valor: i.valor ?? null
+        }));
+}
+
+async function apiPost(url, body) {
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+        const msg = data?.error || `Erro HTTP ${resp.status}`;
+        throw new Error(msg);
+    }
+    return data;
+}
 let selectedFile = null;
 
 // ===== FUNÇÕES DE AUTO-FORMATAÇÃO DE DATA =====
@@ -406,7 +481,9 @@ function openCobli() {
 function loadSectors() {
     const grid = document.getElementById('sectorsGrid');
     grid.innerHTML = '';
-    setores.forEach(setor => {
+    const allowedIds = getAllowedSectorIds(currentUser);
+    const setoresVisiveis = allowedIds ? setores.filter(s => allowedIds.includes(s.id)) : setores;
+    setoresVisiveis.forEach(setor => {
         const btn = document.createElement('button');
         btn.className = `sector-btn ${setor.classe}`;
         btn.innerHTML = `<h2>${setor.nome}</h2><p>${setor.indicadores.length} indicadores</p>`;
@@ -435,6 +512,17 @@ function openSector(setor) {
         div.innerHTML = `<label class="indicator-label">${indicador.nome}</label>${metaHtml}${inputHtml}`;
         form.appendChild(div);
     });
+
+    // Ajusta botões conforme perfil
+    const perfil = getUserPerfil(currentUser);
+    const sendBtn = document.getElementById('sendBtn');
+    if (sendBtn) {
+        if (perfil === 'LIDER' || perfil === 'GESTAO') {
+            sendBtn.classList.remove('hidden');
+        } else {
+            sendBtn.classList.add('hidden');
+        }
+    }
     showIndicatorsScreen();
 }
 
@@ -460,32 +548,70 @@ function updateIndicatorDate(id, value) {
 }
 
 function handleSave() {
-    const novoRegistro = {
-        id: Date.now(),
-        usuario: currentUser.nome,
-        setor: currentSector.nome,
-        timestamp: new Date().toLocaleString('pt-BR'),
-        indicadores: currentSector.indicadores,
-        status: 'Salvo Localmente'
+    // Regra: usuário padrão salva como rascunho no banco (ZDR);
+    // líder/gestão podem salvar também como rascunho (para continuar depois).
+    const periodo = getPeriodoAtualOuDoFormulario();
+    const valores = buildValoresPayload();
+
+    const body = {
+        setorNome: currentSector.nome,
+        funcionarioEmail: currentUser.email,
+        funcionarioNome: currentUser.nome,
+        funcionarioPerfil: getUserPerfil(currentUser),
+        periodo,
+        valores
     };
-    registrosDB.unshift(novoRegistro);
-    updateHistoryDisplay();
-    alert('Dados salvos localmente com sucesso!');
+
+    apiPost('/api/drafts', body)
+        .then(() => {
+            registrosDB.unshift({
+                id: Date.now(),
+                usuario: currentUser.nome,
+                setor: currentSector.nome,
+                timestamp: new Date().toLocaleString('pt-BR'),
+                indicadores: currentSector.indicadores,
+                status: 'Rascunho (DB)'
+            });
+            updateHistoryDisplay();
+            alert('Rascunho salvo no banco com sucesso!');
+        })
+        .catch(err => alert(`Erro ao salvar rascunho: ${err.message}`));
 }
 
 function handleSendDB() {
-    const novoRegistro = {
-        id: Date.now(),
-        usuario: currentUser.nome,
-        setor: currentSector.nome,
-        timestamp: new Date().toLocaleString('pt-BR'),
-        indicadores: currentSector.indicadores,
-        status: 'Enviado para DB'
+    const perfil = getUserPerfil(currentUser);
+    if (perfil !== 'LIDER' && perfil !== 'GESTAO') {
+        alert('Apenas LÍDER ou GESTÃO podem enviar valores definitivos para o banco. Use "Salvar" para rascunho.');
+        return;
+    }
+
+    const periodo = getPeriodoAtualOuDoFormulario();
+    const valores = buildValoresPayload();
+
+    const body = {
+        setorNome: currentSector.nome,
+        funcionarioEmail: currentUser.email,
+        funcionarioNome: currentUser.nome,
+        funcionarioPerfil: perfil,
+        periodo,
+        valores
     };
-    registrosDB.unshift(novoRegistro);
-    updateHistoryDisplay();
-    alert('Dados enviados para banco de dados com sucesso!');
-    backToSectors();
+
+    apiPost('/api/valores', body)
+        .then(() => {
+            registrosDB.unshift({
+                id: Date.now(),
+                usuario: currentUser.nome,
+                setor: currentSector.nome,
+                timestamp: new Date().toLocaleString('pt-BR'),
+                indicadores: currentSector.indicadores,
+                status: 'Enviado para DB'
+            });
+            updateHistoryDisplay();
+            alert('Dados enviados para banco de dados com sucesso!');
+            backToSectors();
+        })
+        .catch(err => alert(`Erro ao enviar para DB: ${err.message}`));
 }
 
 function updateHistoryDisplay() {
