@@ -321,28 +321,35 @@ def get_db_connection():
 
 
 def _get_or_create_setor(cur, setor_id, setor_nome):
-    """Retorna o ID do setor no banco. Se não existir, cria e retorna o novo ID."""
+    # 1) Se veio ID e existe
     if setor_id is not None:
         cur.execute("SELECT ZSE_ID FROM ZSE WHERE ZSE_ID = ?", (setor_id,))
         row = cur.fetchone()
-        if row:
+        if row and row[0] is not None:
             return int(row[0])
 
+    # 2) precisa de nome
     if not setor_nome or not str(setor_nome).strip():
         raise ValueError("setor_nome não informado (não foi possível criar/achar o setor).")
 
     setor_nome = str(setor_nome).strip()
 
+    # 3) tenta achar por nome
     cur.execute("SELECT ZSE_ID FROM ZSE WHERE ZSE_NOME = ?", (setor_nome,))
     row = cur.fetchone()
-    if row:
+    if row and row[0] is not None:
         return int(row[0])
 
-    cur.execute("INSERT INTO ZSE (ZSE_NOME) OUTPUT INSERTED.ZSE_ID VALUES (?)", (setor_nome,))
+    # 4) insere retornando ID
+    cur.execute(
+        "INSERT INTO ZSE (ZSE_NOME) OUTPUT INSERTED.ZSE_ID VALUES (?)",
+        (setor_nome,)
+    )
     row = cur.fetchone()
-    if not row:
-        raise RuntimeError("Falha ao inserir setor (não retornou INSERTED.ZSE_ID).")
+    if not row or row[0] is None:
+        raise RuntimeError("Falha ao inserir setor (OUTPUT INSERTED.ZSE_ID não retornou valor).")
     return int(row[0])
+
 
 
 def _get_or_create_funcionario(cur, funcionario_id, funcionario_email, funcionario_nome, setor_id=None, perfil=None):
@@ -352,21 +359,28 @@ def _get_or_create_funcionario(cur, funcionario_id, funcionario_email, funcionar
     if funcionario_email:
         cur.execute("SELECT TOP 1 ZFU_ID FROM ZFU WHERE ZFU_EMAIL = ?", funcionario_email)
         row = cur.fetchone()
-        if row:
+        if row and row[0] is not None:
             return int(row[0])
 
     if not funcionario_nome and not funcionario_email:
         raise ValueError("funcionarioId ou funcionarioEmail/funcionarioNome é obrigatório")
 
     cur.execute(
-        "INSERT INTO ZFU (ZFU_NOME, ZFU_EMAIL, ZFU_SETOR_ID, ZFU_PERFIL, ZFU_ATIVO) VALUES (?, ?, ?, ?, 1)",
+        """
+        INSERT INTO ZFU (ZFU_NOME, ZFU_EMAIL, ZFU_SETOR_ID, ZFU_ATIVO)
+        OUTPUT INSERTED.ZFU_ID
+        VALUES (?, ?, ?, 1)
+        """,
         funcionario_nome or funcionario_email,
         funcionario_email,
-        setor_id,
-        perfil,
+        setor_id
     )
-    cur.execute("SELECT SCOPE_IDENTITY()")
-    return int(cur.fetchone()[0])
+    row = cur.fetchone()
+    if not row or row[0] is None:
+        raise RuntimeError("Falha ao inserir funcionário (OUTPUT INSERTED.ZFU_ID não retornou valor).")
+    return int(row[0])
+
+
 
 
 def _get_or_create_indicador(cur, indicador_id, setor_id, codigo, nome, tipo=None, unidade=None, meta=None):
@@ -379,55 +393,34 @@ def _get_or_create_indicador(cur, indicador_id, setor_id, codigo, nome, tipo=Non
     if codigo is None:
         raise ValueError("indicadorId ou indicadorCodigo é obrigatório")
 
+    codigo = str(codigo)
+
     cur.execute(
         "SELECT TOP 1 ZIN_ID FROM ZIN WHERE ZIN_SETOR_ID = ? AND ZIN_CODIGO = ?",
         setor_id,
-        str(codigo),
+        codigo
     )
     row = cur.fetchone()
-    if row:
+    if row and row[0] is not None:
         return int(row[0])
 
     cur.execute(
-        "INSERT INTO ZIN (ZIN_SETOR_ID, ZIN_CODIGO, ZIN_NOME, ZIN_TIPO, ZIN_UNIDADE, ZIN_META, ZIN_ATIVO) VALUES (?, ?, ?, ?, ?, ?, 1)",
+        """
+        INSERT INTO ZIN (ZIN_SETOR_ID, ZIN_CODIGO, ZIN_NOME, ZIN_TIPO, ZIN_UNIDADE, ZIN_META, ZIN_ATIVO)
+        OUTPUT INSERTED.ZIN_ID
+        VALUES (?, ?, ?, ?, ?, ?, 1)
+        """,
         setor_id,
-        str(codigo),
-        nome,
+        codigo,
+        nome or f"Indicador {codigo}",
         tipo,
         unidade,
-        meta,
+        meta
     )
-    cur.execute("SELECT SCOPE_IDENTITY()")
-    return int(cur.fetchone()[0])
-
-
-def _rows_to_dicts(cursor, rows):
-    cols = [c[0] for c in cursor.description]
-    return [dict(zip(cols, r)) for r in rows]
-
-
-# ✅ SUBSTITUIÇÕES: helper para aceitar camelCase/snake_case
-def _pick(payload: dict, *keys, default=None):
-    for k in keys:
-        if k in payload and payload.get(k) not in (None, "", []):
-            return payload.get(k)
-    return default
-
-
-@app.route('/api/health', methods=['GET'])
-def api_health():
-    test_db = request.args.get("db") == "1"
-    if not test_db:
-        return jsonify({"ok": True, "service": "indicadores"}), 200
-    try:
-        with get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT 1 AS ok")
-            row = cur.fetchone()
-        return jsonify({"ok": True, "db": True, "db_ok": int(row[0])}), 200
-    except Exception as e:
-        return jsonify({"ok": False, "db": False, "error": str(e)}), 500
-
+    row = cur.fetchone()
+    if not row or row[0] is None:
+        raise RuntimeError("Falha ao inserir indicador (OUTPUT INSERTED.ZIN_ID não retornou valor).")
+    return int(row[0])
 
 @app.route('/api/setores', methods=['GET'])
 def api_setores():
@@ -458,6 +451,18 @@ def api_indicadores():
         """, setor_id)
         rows = cur.fetchall()
         return jsonify(_rows_to_dicts(cur, rows))
+
+def _pick(d: dict, *keys, default=None):
+    """
+    Pega o primeiro valor não-nulo do dict para as chaves informadas.
+    Ex: _pick(payload, "setorId", "setor_id", "setorID")
+    """
+    if not isinstance(d, dict):
+        return default
+    for k in keys:
+        if k in d and d.get(k) is not None:
+            return d.get(k)
+    return default
 
 
 # ✅ SUBSTITUÍDO: /api/valores robusto
