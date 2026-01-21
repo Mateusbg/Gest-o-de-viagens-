@@ -5,24 +5,26 @@ ANÁLISE DE VIAGENS (LAVRA → BRITADOR) - BACKEND FLASK
 
 Autor: Mateus Barbosa
 Data: 07/01/2026
-Version: 3.1 (CORRIGIDO)
+Version: 3.1 (CORRIGIDO + API INDICADORES ROBUSTA)
 ===========================================================
 """
 from dotenv import load_dotenv
 from pathlib import Path
 
 # Carrega variáveis do .env SEM depender do diretório em que o comando foi executado.
-# (Quando roda via VSCode/serviço, o CWD pode ser diferente e o .env não é encontrado.)
 _ROOT = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=_ROOT / ".env", override=False)
+
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 import os
 import pandas as pd
-import numpy as np
-import plotly.express as px
 import json
 import traceback
+
+# IMPORTS QUE FALTAVAM (você usa np e px)
+import numpy as np
+import plotly.express as px
 
 app = Flask(__name__)
 
@@ -45,9 +47,11 @@ TONELADAS_POR_VEICULO = {
 }
 TONELAGEM_PADRAO = 68
 
+
 def allowed_file(filename):
     """Verifica se o arquivo tem extensão permitida"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 def processar_arquivo(arquivo_path):
     """Processa o arquivo Excel e retorna análise completa"""
@@ -74,7 +78,7 @@ def processar_arquivo(arquivo_path):
         colunas_faltando = [col for col in colunas_necessarias if col not in cobli_df.columns]
         if colunas_faltando:
             return {
-                'success': False, 
+                'success': False,
                 'error': f'Colunas faltando no Excel: {", ".join(colunas_faltando)}'
             }
 
@@ -191,6 +195,7 @@ def processar_arquivo(arquivo_path):
         print(traceback.format_exc())
         return {'success': False, 'error': f'Erro ao processar arquivo: {str(e)}'}
 
+
 def gerar_graficos(analise_toneladas, agrupamento):
     """Gera gráficos Plotly e retorna como JSON"""
     try:
@@ -260,6 +265,7 @@ def gerar_graficos(analise_toneladas, agrupamento):
         print(f"[ERRO] Erro ao gerar gráficos: {str(e)}")
         return {}
 
+
 @app.route('/')
 def index():
     """Página principal"""
@@ -272,26 +278,18 @@ def index():
 import pyodbc
 from datetime import datetime, date
 
+
 def get_db_connection():
-    """Abre conexão com SQL Server usando variáveis de ambiente.
-    Configure no Windows (PowerShell):
-      $env:SQL_SERVER="NOME_DO_SERVIDOR"
-      $env:SQL_DATABASE="NOME_DO_BANCO"
-      $env:SQL_USER="usuario"
-      $env:SQL_PASSWORD="senha"
-      $env:SQL_DRIVER="ODBC Driver 18 for SQL Server"
-    """
+    """Abre conexão com SQL Server usando variáveis de ambiente."""
     driver = os.getenv("SQL_DRIVER", "ODBC Driver 18 for SQL Server")
     server = os.getenv("SQL_SERVER", "")
     database = os.getenv("SQL_DATABASE", "")
     user = os.getenv("SQL_USER", "")
     password = os.getenv("SQL_PASSWORD", "")
-    trusted = os.getenv("SQL_TRUSTED_CONNECTION", "false").lower() in ("1","true","yes","y")
+    trusted = os.getenv("SQL_TRUSTED_CONNECTION", "false").lower() in ("1", "true", "yes", "y")
 
-    # Driver 18 costuma exigir Encrypt; no SSMS você marcou "Certificado do Servidor de Confiança".
-    # Mantemos configurável por env, mas com defaults seguros para ambiente corporativo.
-    encrypt = os.getenv("SQL_ENCRYPT", "yes").lower() in ("1","true","yes","y")
-    trust_cert = os.getenv("SQL_TRUST_CERT", "yes").lower() in ("1","true","yes","y")
+    encrypt = os.getenv("SQL_ENCRYPT", "yes").lower() in ("1", "true", "yes", "y")
+    trust_cert = os.getenv("SQL_TRUST_CERT", "yes").lower() in ("1", "true", "yes", "y")
 
     if not server or not database:
         raise RuntimeError("SQL_SERVER e SQL_DATABASE não configurados.")
@@ -323,30 +321,43 @@ def get_db_connection():
 
 
 def _get_or_create_setor(cur, setor_id, setor_nome):
-    if setor_id:
-        return int(setor_id)
-    if not setor_nome:
-        raise ValueError("setorId ou setorNome é obrigatório")
-    cur.execute("SELECT TOP 1 ZSE_ID FROM ZSE WHERE ZSE_NOME = ?", setor_nome)
+    """Retorna o ID do setor no banco. Se não existir, cria e retorna o novo ID."""
+    if setor_id is not None:
+        cur.execute("SELECT ZSE_ID FROM ZSE WHERE ZSE_ID = ?", (setor_id,))
+        row = cur.fetchone()
+        if row:
+            return int(row[0])
+
+    if not setor_nome or not str(setor_nome).strip():
+        raise ValueError("setor_nome não informado (não foi possível criar/achar o setor).")
+
+    setor_nome = str(setor_nome).strip()
+
+    cur.execute("SELECT ZSE_ID FROM ZSE WHERE ZSE_NOME = ?", (setor_nome,))
     row = cur.fetchone()
     if row:
         return int(row[0])
-    cur.execute("INSERT INTO ZSE (ZSE_NOME, ZSE_ATIVO) VALUES (?, 1)", setor_nome)
-    cur.execute("SELECT SCOPE_IDENTITY()")
-    return int(cur.fetchone()[0])
+
+    cur.execute("INSERT INTO ZSE (ZSE_NOME) OUTPUT INSERTED.ZSE_ID VALUES (?)", (setor_nome,))
+    row = cur.fetchone()
+    if not row:
+        raise RuntimeError("Falha ao inserir setor (não retornou INSERTED.ZSE_ID).")
+    return int(row[0])
 
 
 def _get_or_create_funcionario(cur, funcionario_id, funcionario_email, funcionario_nome, setor_id=None, perfil=None):
     if funcionario_id:
         return int(funcionario_id)
-    # email é o identificador mais estável
+
     if funcionario_email:
         cur.execute("SELECT TOP 1 ZFU_ID FROM ZFU WHERE ZFU_EMAIL = ?", funcionario_email)
         row = cur.fetchone()
         if row:
             return int(row[0])
+
     if not funcionario_nome and not funcionario_email:
         raise ValueError("funcionarioId ou funcionarioEmail/funcionarioNome é obrigatório")
+
     cur.execute(
         "INSERT INTO ZFU (ZFU_NOME, ZFU_EMAIL, ZFU_SETOR_ID, ZFU_PERFIL, ZFU_ATIVO) VALUES (?, ?, ?, ?, 1)",
         funcionario_nome or funcionario_email,
@@ -361,11 +372,13 @@ def _get_or_create_funcionario(cur, funcionario_id, funcionario_email, funcionar
 def _get_or_create_indicador(cur, indicador_id, setor_id, codigo, nome, tipo=None, unidade=None, meta=None):
     if indicador_id:
         return int(indicador_id)
+
     if not setor_id:
         raise ValueError("setorId é obrigatório para indicador")
-    # código local por setor ajuda a manter estabilidade
+
     if codigo is None:
         raise ValueError("indicadorId ou indicadorCodigo é obrigatório")
+
     cur.execute(
         "SELECT TOP 1 ZIN_ID FROM ZIN WHERE ZIN_SETOR_ID = ? AND ZIN_CODIGO = ?",
         setor_id,
@@ -374,6 +387,7 @@ def _get_or_create_indicador(cur, indicador_id, setor_id, codigo, nome, tipo=Non
     row = cur.fetchone()
     if row:
         return int(row[0])
+
     cur.execute(
         "INSERT INTO ZIN (ZIN_SETOR_ID, ZIN_CODIGO, ZIN_NOME, ZIN_TIPO, ZIN_UNIDADE, ZIN_META, ZIN_ATIVO) VALUES (?, ?, ?, ?, ?, ?, 1)",
         setor_id,
@@ -386,13 +400,22 @@ def _get_or_create_indicador(cur, indicador_id, setor_id, codigo, nome, tipo=Non
     cur.execute("SELECT SCOPE_IDENTITY()")
     return int(cur.fetchone()[0])
 
+
 def _rows_to_dicts(cursor, rows):
     cols = [c[0] for c in cursor.description]
     return [dict(zip(cols, r)) for r in rows]
 
+
+# ✅ SUBSTITUIÇÕES: helper para aceitar camelCase/snake_case
+def _pick(payload: dict, *keys, default=None):
+    for k in keys:
+        if k in payload and payload.get(k) not in (None, "", []):
+            return payload.get(k)
+    return default
+
+
 @app.route('/api/health', methods=['GET'])
 def api_health():
-    """Health check simples (inclui teste de conexão opcional)."""
     test_db = request.args.get("db") == "1"
     if not test_db:
         return jsonify({"ok": True, "service": "indicadores"}), 200
@@ -404,6 +427,7 @@ def api_health():
         return jsonify({"ok": True, "db": True, "db_ok": int(row[0])}), 200
     except Exception as e:
         return jsonify({"ok": False, "db": False, "error": str(e)}), 500
+
 
 @app.route('/api/setores', methods=['GET'])
 def api_setores():
@@ -417,6 +441,7 @@ def api_setores():
         """)
         rows = cur.fetchall()
         return jsonify(_rows_to_dicts(cur, rows))
+
 
 @app.route('/api/indicadores', methods=['GET'])
 def api_indicadores():
@@ -434,161 +459,192 @@ def api_indicadores():
         rows = cur.fetchall()
         return jsonify(_rows_to_dicts(cur, rows))
 
+
+# ✅ SUBSTITUÍDO: /api/valores robusto
 @app.route('/api/valores', methods=['POST'])
 def api_salvar_valores():
-    """Salva valores (uso típico: líder/gestão)."""
     payload = request.get_json(force=True, silent=True) or {}
-    setor_id = payload.get("setorId")
-    setor_nome = payload.get("setorNome")
-    funcionario_id = payload.get("funcionarioId")
-    funcionario_email = payload.get("funcionarioEmail")
-    funcionario_nome = payload.get("funcionarioNome")
-    funcionario_perfil = payload.get("funcionarioPerfil")
-    periodo = payload.get("periodo")  # 'YYYY-MM-01' ou 'YYYY-MM'
-    valores = payload.get("valores") or []
 
-    if (not setor_id and not setor_nome) or (not funcionario_id and not (funcionario_email or funcionario_nome)) or not periodo or not isinstance(valores, list):
-        return jsonify({"error": "Campos obrigatórios: setorId/setorNome, funcionarioId/funcionarioEmail, periodo, valores[]"}), 400
+    setor_id = _pick(payload, "setorId", "setor_id", "setorID")
+    setor_nome = _pick(payload, "setorNome", "setor_nome", "setor", "nomeSetor", "nome_setor")
 
-    # normaliza periodo para primeiro dia do mês
+    funcionario_id = _pick(payload, "funcionarioId", "funcionario_id", "usuarioId", "usuario_id")
+    funcionario_email = _pick(payload, "funcionarioEmail", "funcionario_email", "email")
+    funcionario_nome = _pick(payload, "funcionarioNome", "funcionario_nome", "nome", "usuarioNome", "usuario_nome")
+    funcionario_perfil = _pick(payload, "funcionarioPerfil", "funcionario_perfil", "perfil", "role")
+
+    periodo = _pick(payload, "periodo", "competencia", "mes", "period")
+    valores = _pick(payload, "valores", "itens", "items", default=[]) or []
+
+    if (not setor_id and not setor_nome):
+        return jsonify({"ok": False, "error": "Envie setorId/setor_id ou setorNome/setor_nome"}), 400
+
+    if (not funcionario_id and not (funcionario_email or funcionario_nome)):
+        return jsonify({"ok": False, "error": "Envie funcionarioId/funcionario_id ou funcionarioEmail/email ou funcionarioNome/nome"}), 400
+
+    if not periodo:
+        return jsonify({"ok": False, "error": "Envie periodo (YYYY-MM ou YYYY-MM-01)"}), 400
+
+    if not isinstance(valores, list):
+        return jsonify({"ok": False, "error": "valores precisa ser uma lista"}), 400
+
     try:
-        if len(periodo) == 7:
-            periodo_date = datetime.strptime(periodo + "-01", "%Y-%m-%d").date()
+        p = str(periodo)
+        if len(p) == 7:
+            periodo_date = datetime.strptime(p + "-01", "%Y-%m-%d").date()
         else:
-            periodo_date = datetime.strptime(periodo, "%Y-%m-%d").date()
+            periodo_date = datetime.strptime(p, "%Y-%m-%d").date()
         periodo_date = periodo_date.replace(day=1)
     except Exception:
-        return jsonify({"error": "periodo inválido. Use YYYY-MM ou YYYY-MM-01"}), 400
+        return jsonify({"ok": False, "error": "periodo inválido. Use YYYY-MM ou YYYY-MM-01"}), 400
 
     now = datetime.utcnow()
 
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        setor_id_db = _get_or_create_setor(cur, setor_id, setor_nome)
-        funcionario_id_db = _get_or_create_funcionario(
-            cur,
-            funcionario_id,
-            funcionario_email,
-            funcionario_nome,
-            setor_id=setor_id_db,
-            perfil=funcionario_perfil,
-        )
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
 
-        for item in valores:
-            ind_id = item.get("indicadorId")
-            ind_codigo = item.get("indicadorCodigo")
-            ind_nome = item.get("indicadorNome")
-            ind_tipo = item.get("tipo")
-            ind_unidade = item.get("unidade")
-            ind_meta = item.get("meta")
-            valor = item.get("valor")
-
-            if not ind_id and ind_codigo is None:
-                continue
-
-            ind_id_db = _get_or_create_indicador(
-                cur,
-                ind_id,
-                setor_id_db,
-                ind_codigo,
-                ind_nome or f"Indicador {ind_codigo}",
-                tipo=ind_tipo,
-                unidade=ind_unidade,
-                meta=ind_meta,
+            setor_id_db = _get_or_create_setor(cur, setor_id, setor_nome)
+            funcionario_id_db = _get_or_create_funcionario(
+                cur, funcionario_id, funcionario_email, funcionario_nome,
+                setor_id=setor_id_db, perfil=funcionario_perfil
             )
-            # upsert simples por indicador/setor/periodo
-            cur.execute("""
-                MERGE ZIV AS tgt
-                USING (SELECT ? AS ZIV_INDICADOR_ID, ? AS ZIV_SETOR_ID, ? AS ZIV_PERIODO) AS src
-                ON tgt.ZIV_INDICADOR_ID = src.ZIV_INDICADOR_ID AND tgt.ZIV_SETOR_ID = src.ZIV_SETOR_ID AND tgt.ZIV_PERIODO = src.ZIV_PERIODO
-                WHEN MATCHED THEN
-                    UPDATE SET ZIV_VALOR = ?, ZIV_ATUALIZADO_EM = ?, ZIV_FUNCIONARIO_ID = ?
-                WHEN NOT MATCHED THEN
-                    INSERT (ZIV_INDICADOR_ID, ZIV_SETOR_ID, ZIV_FUNCIONARIO_ID, ZIV_PERIODO, ZIV_VALOR, ZIV_CRIADO_EM, ZIV_ATUALIZADO_EM)
-                    VALUES (?, ?, ?, ?, ?, ?, ?);
-            """, ind_id_db, setor_id_db, periodo_date, str(valor) if valor is not None else None, now, funcionario_id_db,
-                 ind_id_db, setor_id_db, funcionario_id_db, periodo_date, str(valor) if valor is not None else None, now, now)
-        conn.commit()
 
-    return jsonify({"ok": True})
+            for item in valores:
+                if not isinstance(item, dict):
+                    continue
 
+                ind_id = _pick(item, "indicadorId", "indicador_id", "id")
+                ind_codigo = _pick(item, "indicadorCodigo", "indicador_codigo", "codigo", "code")
+                ind_nome = _pick(item, "indicadorNome", "indicador_nome", "nome", "name")
+                ind_tipo = _pick(item, "tipo", "type")
+                ind_unidade = _pick(item, "unidade", "unit")
+                ind_meta = _pick(item, "meta", "target")
+                valor = _pick(item, "valor", "value")
+
+                if not ind_id and ind_codigo is None:
+                    continue
+
+                ind_id_db = _get_or_create_indicador(
+                    cur, ind_id, setor_id_db, ind_codigo,
+                    ind_nome or f"Indicador {ind_codigo}",
+                    tipo=ind_tipo, unidade=ind_unidade, meta=ind_meta
+                )
+
+                cur.execute("""
+                    MERGE ZIV AS tgt
+                    USING (SELECT ? AS ZIV_INDICADOR_ID, ? AS ZIV_SETOR_ID, ? AS ZIV_PERIODO) AS src
+                    ON tgt.ZIV_INDICADOR_ID = src.ZIV_INDICADOR_ID AND tgt.ZIV_SETOR_ID = src.ZIV_SETOR_ID AND tgt.ZIV_PERIODO = src.ZIV_PERIODO
+                    WHEN MATCHED THEN
+                        UPDATE SET ZIV_VALOR = ?, ZIV_ATUALIZADO_EM = ?, ZIV_FUNCIONARIO_ID = ?
+                    WHEN NOT MATCHED THEN
+                        INSERT (ZIV_INDICADOR_ID, ZIV_SETOR_ID, ZIV_FUNCIONARIO_ID, ZIV_PERIODO, ZIV_VALOR, ZIV_CRIADO_EM, ZIV_ATUALIZADO_EM)
+                        VALUES (?, ?, ?, ?, ?, ?, ?);
+                """,
+                ind_id_db, setor_id_db, periodo_date,
+                str(valor) if valor is not None else None, now, funcionario_id_db,
+                ind_id_db, setor_id_db, funcionario_id_db, periodo_date,
+                str(valor) if valor is not None else None, now, now)
+
+            conn.commit()
+
+        return jsonify({"ok": True})
+
+    except Exception as e:
+        print("[ERRO] /api/valores:", str(e))
+        print(traceback.format_exc())
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# ✅ SUBSTITUÍDO: /api/drafts POST robusto
 @app.route('/api/drafts', methods=['POST'])
 def api_salvar_draft():
-    """Salva rascunho (uso típico: usuário padrão)."""
     payload = request.get_json(force=True, silent=True) or {}
-    setor_id = payload.get("setorId")
-    setor_nome = payload.get("setorNome")
-    funcionario_id = payload.get("funcionarioId")
-    funcionario_email = payload.get("funcionarioEmail")
-    funcionario_nome = payload.get("funcionarioNome")
-    funcionario_perfil = payload.get("funcionarioPerfil")
-    periodo = payload.get("periodo")
-    valores = payload.get("valores") or []
 
-    if (not setor_id and not setor_nome) or (not funcionario_id and not (funcionario_email or funcionario_nome)) or not periodo or not isinstance(valores, list):
-        return jsonify({"error": "Campos obrigatórios: setorId/setorNome, funcionarioId/funcionarioEmail, periodo, valores[]"}), 400
+    setor_id = _pick(payload, "setorId", "setor_id", "setorID")
+    setor_nome = _pick(payload, "setorNome", "setor_nome", "setor", "nomeSetor", "nome_setor")
+
+    funcionario_id = _pick(payload, "funcionarioId", "funcionario_id", "usuarioId", "usuario_id")
+    funcionario_email = _pick(payload, "funcionarioEmail", "funcionario_email", "email")
+    funcionario_nome = _pick(payload, "funcionarioNome", "funcionario_nome", "nome", "usuarioNome", "usuario_nome")
+    funcionario_perfil = _pick(payload, "funcionarioPerfil", "funcionario_perfil", "perfil", "role")
+
+    periodo = _pick(payload, "periodo", "competencia", "mes", "period")
+    valores = _pick(payload, "valores", "itens", "items", default=[]) or []
+
+    if (not setor_id and not setor_nome):
+        return jsonify({"ok": False, "error": "Envie setorId/setor_id ou setorNome/setor_nome"}), 400
+
+    if (not funcionario_id and not (funcionario_email or funcionario_nome)):
+        return jsonify({"ok": False, "error": "Envie funcionarioId/funcionario_id ou funcionarioEmail/email ou funcionarioNome/nome"}), 400
+
+    if not periodo:
+        return jsonify({"ok": False, "error": "Envie periodo (YYYY-MM ou YYYY-MM-01)"}), 400
+
+    if not isinstance(valores, list):
+        return jsonify({"ok": False, "error": "valores precisa ser uma lista"}), 400
 
     try:
-        if len(periodo) == 7:
-            periodo_date = datetime.strptime(periodo + "-01", "%Y-%m-%d").date()
+        p = str(periodo)
+        if len(p) == 7:
+            periodo_date = datetime.strptime(p + "-01", "%Y-%m-%d").date()
         else:
-            periodo_date = datetime.strptime(periodo, "%Y-%m-%d").date()
+            periodo_date = datetime.strptime(p, "%Y-%m-%d").date()
         periodo_date = periodo_date.replace(day=1)
     except Exception:
-        return jsonify({"error": "periodo inválido. Use YYYY-MM ou YYYY-MM-01"}), 400
+        return jsonify({"ok": False, "error": "periodo inválido. Use YYYY-MM ou YYYY-MM-01"}), 400
 
     now = datetime.utcnow()
 
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        setor_id_db = _get_or_create_setor(cur, setor_id, setor_nome)
-        funcionario_id_db = _get_or_create_funcionario(
-            cur,
-            funcionario_id,
-            funcionario_email,
-            funcionario_nome,
-            setor_id=setor_id_db,
-            perfil=funcionario_perfil,
-        )
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
 
-        for item in valores:
-            ind_id = item.get("indicadorId")
-            ind_codigo = item.get("indicadorCodigo")
-            ind_nome = item.get("indicadorNome")
-            ind_tipo = item.get("tipo")
-            ind_unidade = item.get("unidade")
-            ind_meta = item.get("meta")
-            valor = item.get("valor")
-
-            if not ind_id and ind_codigo is None:
-                continue
-
-            ind_id_db = _get_or_create_indicador(
-                cur,
-                ind_id,
-                setor_id_db,
-                ind_codigo,
-                ind_nome or f"Indicador {ind_codigo}",
-                tipo=ind_tipo,
-                unidade=ind_unidade,
-                meta=ind_meta,
+            setor_id_db = _get_or_create_setor(cur, setor_id, setor_nome)
+            funcionario_id_db = _get_or_create_funcionario(
+                cur, funcionario_id, funcionario_email, funcionario_nome,
+                setor_id=setor_id_db, perfil=funcionario_perfil
             )
 
-            cur.execute(
-                """
-                INSERT INTO ZDR (ZDR_INDICADOR_ID, ZDR_SETOR_ID, ZDR_FUNCIONARIO_ID, ZDR_PERIODO, ZDR_VALOR, ZDR_CRIADO_EM)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                ind_id_db,
-                setor_id_db,
-                funcionario_id_db,
-                periodo_date,
-                str(valor) if valor is not None else None,
-                now,
-            )
-        conn.commit()
+            for item in valores:
+                if not isinstance(item, dict):
+                    continue
 
-    return jsonify({"ok": True})
+                ind_id = _pick(item, "indicadorId", "indicador_id", "id")
+                ind_codigo = _pick(item, "indicadorCodigo", "indicador_codigo", "codigo", "code")
+                ind_nome = _pick(item, "indicadorNome", "indicador_nome", "nome", "name")
+                ind_tipo = _pick(item, "tipo", "type")
+                ind_unidade = _pick(item, "unidade", "unit")
+                ind_meta = _pick(item, "meta", "target")
+                valor = _pick(item, "valor", "value")
+
+                if not ind_id and ind_codigo is None:
+                    continue
+
+                ind_id_db = _get_or_create_indicador(
+                    cur, ind_id, setor_id_db, ind_codigo,
+                    ind_nome or f"Indicador {ind_codigo}",
+                    tipo=ind_tipo, unidade=ind_unidade, meta=ind_meta
+                )
+
+                cur.execute(
+                    """
+                    INSERT INTO ZDR (ZDR_INDICADOR_ID, ZDR_SETOR_ID, ZDR_FUNCIONARIO_ID, ZDR_PERIODO, ZDR_VALOR, ZDR_CRIADO_EM)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    ind_id_db, setor_id_db, funcionario_id_db, periodo_date,
+                    str(valor) if valor is not None else None, now
+                )
+
+            conn.commit()
+
+        return jsonify({"ok": True})
+
+    except Exception as e:
+        print("[ERRO] /api/drafts:", str(e))
+        print(traceback.format_exc())
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 
 @app.route('/api/drafts', methods=['GET'])
 def api_listar_drafts():
@@ -635,5 +691,3 @@ if __name__ == '__main__':
     print("🔧 Debug: ATIVO (sem reloader)")
     print("=" * 70)
     app.run(debug=True, port=5000, host='127.0.0.1', use_reloader=False)
- 
-## app = app  # Exporte a aplicação Flask como 'app' para Vercel
