@@ -1,6 +1,6 @@
 // ===== BASE DE DADOS =====
 const usuariosDB = [
-    { id: 1, email: 'ad', senha: '1120', nome: 'Administrador' },
+    { id: 1, email: 'ad', senha: '1120', nome: 'Admin' },
     { id: 2, email: 'compras', senha: '123456', nome: 'Supervisor de compras' },
     { id: 3, email: 'operacao', senha: '123456', nome: 'Lider Operaçoes' },
     { id: 4, email: 'ambiental', senha: '123456', nome: 'Ambiental'},
