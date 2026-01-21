@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Sistema de Indicadores</title>
     <link rel="stylesheet" href="/static/styles.css">
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="/static/script.js" defer></script>
-    <link rel="stylesheet" href="/static/cobli-styles.css">
+<script src="/static/script.js" defer></script>
 </head>
 <body>
 
@@ -49,13 +47,7 @@
         </header>
 
         <div class="sectors-container">
-            <!-- BOTÃO COBLI VIAGENS -->
-            <button class="sector-btn sector-special" onclick="openCobli()">
-                <h2>🚛 Cobli Viagens</h2>
-                <p>Análise de Viagens e Toneladas</p>
-            </button>
-
-            <div class="sectors-grid" id="sectorsGrid"></div>
+<div class="sectors-grid" id="sectorsGrid"></div>
 
             <div class="history-section hidden" id="historySection">
                 <h2>Histórico de Envios</h2>
@@ -105,130 +97,11 @@
             </div>
         </div>
     </div>
-
-    <!-- TELA COBLI VIAGENS -->
-    <div id="cobliScreen" class="hidden">
-        <header>
-            <div class="header-container">
-                <div class="indicators-header">
-                    <button class="back-btn" onclick="backToSectors()">←</button>
-                    <div class="header-content">
-                        <h1>🚛 Análise de Viagens Cobli</h1>
-                        <p>Upload do Excel e visualização de gráficos</p>
-                    </div>
-                </div>
+</div>
                 <button class="logout-btn" onclick="handleLogout()">🚪 Sair</button>
             </div>
         </header>
 
-        <div class="cobli-content">
-            <!-- Upload de arquivo -->
-            <div class="upload-section">
-                <h2>📊 Carregar Arquivo Excel</h2>
-                <div class="upload-box">
-                    <input type="file" id="excelFile" accept=".xlsx,.xls" style="display: none;">
-                    <label for="excelFile" class="upload-label">
-                        <span class="upload-icon">📁</span>
-                        <span class="upload-text">Clique para selecionar o arquivo Excel</span>
-                    </label>
-                    <div id="fileName" class="file-name hidden"></div>
-                    <button id="uploadBtn" class="btn btn-primary hidden" onclick="uploadFile()">
-                        📤 Processar Arquivo
-                    </button>
-                </div>
-            </div>
-
-            <!-- Loading -->
-            <div id="loadingCobli" class="loading hidden">
-                <div class="spinner"></div>
-                <p>Processando arquivo...</p>
-            </div>
-
-            <!-- Resultados -->
-            <div id="cobliResults" class="hidden">
-                <!-- Resumo -->
-                <div class="summary-section">
-                    <h2>📈 Resumo da Análise</h2>
-                    <div class="summary-cards">
-                        <div class="summary-card">
-                            <h3 id="totalViagens">0</h3>
-                            <p>Total de Viagens</p>
-                        </div>
-                        <div class="summary-card">
-                            <h3 id="totalMotoristas">0</h3>
-                            <p>Motoristas</p>
-                        </div>
-                        <div class="summary-card">
-                            <h3 id="totalToneladas">0 TN</h3>
-                            <p>Toneladas Transportadas</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Abas -->
-                <div class="tabs-container">
-                    <div class="tabs">
-                        <button class="tab-btn active" onclick="showCobliTab('graficos')">📊 Gráficos</button>
-                        <button class="tab-btn" onclick="showCobliTab('toneladas')">⚖️ Toneladas</button>
-                        <button class="tab-btn" onclick="showCobliTab('carros')">🚛 Carros</button>
-                        <button class="tab-btn" onclick="showCobliTab('detalhes')">📋 Detalhes</button>
-                    </div>
-
-                    <!-- Aba Gráficos -->
-                    <div id="tab-graficos" class="tab-content active">
-                        <div class="graficos-grid">
-                            <div id="grafico1" class="grafico-container"></div>
-                            <div id="grafico2" class="grafico-container"></div>
-                            <div id="grafico3" class="grafico-container"></div>
-                            <div id="grafico4" class="grafico-container"></div>
-                        </div>
-                    </div>
-
-                    <!-- Aba Toneladas -->
-                    <div id="tab-toneladas" class="tab-content hidden">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Motorista</th>
-                                    <th>Total de Viagens</th>
-                                    <th>Total de Toneladas</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaToneladas"></tbody>
-                        </table>
-                    </div>
-
-                    <!-- Aba Carros -->
-                    <div id="tab-carros" class="tab-content hidden">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Motorista</th>
-                                    <th>Carros Utilizados</th>
-                                    <th>Total de Viagens</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaCarros"></tbody>
-                        </table>
-                    </div>
-
-                    <!-- Aba Detalhes -->
-                    <div id="tab-detalhes" class="tab-content hidden">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Motorista</th>
-                                    <th>Placa</th>
-                                    <th>Data</th>
-                                    <th>Local</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaDetalhes"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+        
 </body>
 </html>

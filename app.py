@@ -259,63 +259,211 @@ def index():
     """Página principal"""
     return render_template('index.html')
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    """Processa upload do arquivo Excel"""
+
+# ===========================================================
+# BANCO DE DADOS (SQL SERVER) - INDICADORES
+# ===========================================================
+import pyodbc
+from datetime import datetime, date
+
+def get_db_connection():
+    """Abre conexão com SQL Server usando variáveis de ambiente.
+    Configure no Windows (PowerShell):
+      $env:SQL_SERVER="NOME_DO_SERVIDOR"
+      $env:SQL_DATABASE="NOME_DO_BANCO"
+      $env:SQL_USER="usuario"
+      $env:SQL_PASSWORD="senha"
+      $env:SQL_DRIVER="ODBC Driver 18 for SQL Server"
+    """
+    driver = os.getenv("SQL_DRIVER", "ODBC Driver 18 for SQL Server")
+    server = os.getenv("SQL_SERVER", "")
+    database = os.getenv("SQL_DATABASE", "")
+    user = os.getenv("SQL_USER", "")
+    password = os.getenv("SQL_PASSWORD", "")
+    trusted = os.getenv("SQL_TRUSTED_CONNECTION", "false").lower() in ("1","true","yes","y")
+
+    if not server or not database:
+        raise RuntimeError("SQL_SERVER e SQL_DATABASE não configurados.")
+
+    if trusted:
+        conn_str = f"DRIVER={{{driver}}};SERVER={server};DATABASE={database};Trusted_Connection=yes;TrustServerCertificate=yes;"
+    else:
+        if not user or not password:
+            raise RuntimeError("SQL_USER e SQL_PASSWORD não configurados.")
+        conn_str = f"DRIVER={{{driver}}};SERVER={server};DATABASE={database};UID={user};PWD={password};TrustServerCertificate=yes;"
+
+    return pyodbc.connect(conn_str)
+
+def _rows_to_dicts(cursor, rows):
+    cols = [c[0] for c in cursor.description]
+    return [dict(zip(cols, r)) for r in rows]
+
+@app.route('/api/health', methods=['GET'])
+def api_health():
+    """Health check simples (inclui teste de conexão opcional)."""
+    test_db = request.args.get("db") == "1"
+    if not test_db:
+        return jsonify({"ok": True, "service": "indicadores"}), 200
     try:
-        print("[DEBUG] Recebendo requisição de upload")
-
-        if 'file' not in request.files:
-            print("[ERRO] Nenhum arquivo na requisição")
-            return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'}), 400
-
-        file = request.files['file']
-
-        if file.filename == '':
-            print("[ERRO] Nome de arquivo vazio")
-            return jsonify({'success': False, 'error': 'Nenhum arquivo selecionado'}), 400
-
-        if not allowed_file(file.filename):
-            print(f"[ERRO] Tipo de arquivo não permitido: {file.filename}")
-            return jsonify({'success': False, 'error': 'Tipo de arquivo não permitido. Use .xlsx ou .xls'}), 400
-
-        # Salva o arquivo
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        print(f"[DEBUG] Arquivo salvo em: {filepath}")
-
-        # Processa o arquivo
-        resultado = processar_arquivo(filepath)
-
-        if resultado['success']:
-            # Gera gráficos
-            print("[DEBUG] Gerando gráficos...")
-            graficos = gerar_graficos(
-                resultado['analise_toneladas'],
-                resultado['agrupamento']
-            )
-            resultado['graficos'] = graficos
-            print("[DEBUG] Retornando resultado com sucesso")
-        else:
-            print(f"[ERRO] Falha no processamento: {resultado.get('error')}")
-
-        # Remove arquivo após processar
-        try:
-            os.remove(filepath)
-            print("[DEBUG] Arquivo temporário removido")
-        except Exception as e:
-            print(f"[AVISO] Não foi possível remover arquivo: {e}")
-
-        return jsonify(resultado), 200
-
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT 1 AS ok")
+            row = cur.fetchone()
+        return jsonify({"ok": True, "db": True, "db_ok": int(row[0])}), 200
     except Exception as e:
-        print(f"[ERRO CRÍTICO] {str(e)}")
-        print(traceback.format_exc())
-        return jsonify({
-            'success': False,
-            'error': f'Erro no servidor: {str(e)}'
-        }), 500
+        return jsonify({"ok": False, "db": False, "error": str(e)}), 500
+
+@app.route('/api/setores', methods=['GET'])
+def api_setores():
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT ZSE_ID, ZSE_NOME, ZSE_ATIVO
+            FROM ZSE
+            WHERE ZSE_ATIVO = 1
+            ORDER BY ZSE_NOME
+        """)
+        rows = cur.fetchall()
+        return jsonify(_rows_to_dicts(cur, rows))
+
+@app.route('/api/indicadores', methods=['GET'])
+def api_indicadores():
+    setor_id = request.args.get('setor_id', type=int)
+    if not setor_id:
+        return jsonify({"error": "setor_id é obrigatório"}), 400
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT ZIN_ID, ZIN_SETOR_ID, ZIN_NOME, ZIN_TIPO, ZIN_UNIDADE, ZIN_META, ZIN_ATIVO
+            FROM ZIN
+            WHERE ZIN_SETOR_ID = ? AND ZIN_ATIVO = 1
+            ORDER BY ZIN_ID
+        """, setor_id)
+        rows = cur.fetchall()
+        return jsonify(_rows_to_dicts(cur, rows))
+
+@app.route('/api/valores', methods=['POST'])
+def api_salvar_valores():
+    """Salva valores (uso típico: líder/gestão)."""
+    payload = request.get_json(force=True, silent=True) or {}
+    setor_id = payload.get("setorId")
+    funcionario_id = payload.get("funcionarioId")
+    periodo = payload.get("periodo")  # 'YYYY-MM-01' ou 'YYYY-MM'
+    valores = payload.get("valores") or []
+
+    if not setor_id or not funcionario_id or not periodo or not isinstance(valores, list):
+        return jsonify({"error": "Campos obrigatórios: setorId, funcionarioId, periodo, valores[]"}), 400
+
+    # normaliza periodo para primeiro dia do mês
+    try:
+        if len(periodo) == 7:
+            periodo_date = datetime.strptime(periodo + "-01", "%Y-%m-%d").date()
+        else:
+            periodo_date = datetime.strptime(periodo, "%Y-%m-%d").date()
+        periodo_date = periodo_date.replace(day=1)
+    except Exception:
+        return jsonify({"error": "periodo inválido. Use YYYY-MM ou YYYY-MM-01"}), 400
+
+    now = datetime.utcnow()
+
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        for item in valores:
+            ind_id = item.get("indicadorId")
+            valor = item.get("valor")
+            if not ind_id:
+                continue
+            # upsert simples por indicador/setor/periodo
+            cur.execute("""
+                MERGE ZIV AS tgt
+                USING (SELECT ? AS ZIV_INDICADOR_ID, ? AS ZIV_SETOR_ID, ? AS ZIV_PERIODO) AS src
+                ON tgt.ZIV_INDICADOR_ID = src.ZIV_INDICADOR_ID AND tgt.ZIV_SETOR_ID = src.ZIV_SETOR_ID AND tgt.ZIV_PERIODO = src.ZIV_PERIODO
+                WHEN MATCHED THEN
+                    UPDATE SET ZIV_VALOR = ?, ZIV_ATUALIZADO_EM = ?, ZIV_FUNCIONARIO_ID = ?
+                WHEN NOT MATCHED THEN
+                    INSERT (ZIV_INDICADOR_ID, ZIV_SETOR_ID, ZIV_FUNCIONARIO_ID, ZIV_PERIODO, ZIV_VALOR, ZIV_CRIADO_EM, ZIV_ATUALIZADO_EM)
+                    VALUES (?, ?, ?, ?, ?, ?, ?);
+            """, ind_id, setor_id, periodo_date, str(valor) if valor is not None else None, now, funcionario_id,
+                 ind_id, setor_id, funcionario_id, periodo_date, str(valor) if valor is not None else None, now, now)
+        conn.commit()
+
+    return jsonify({"ok": True})
+
+@app.route('/api/drafts', methods=['POST'])
+def api_salvar_draft():
+    """Salva rascunho (uso típico: usuário padrão)."""
+    payload = request.get_json(force=True, silent=True) or {}
+    setor_id = payload.get("setorId")
+    funcionario_id = payload.get("funcionarioId")
+    periodo = payload.get("periodo")
+    valores = payload.get("valores") or []
+
+    if not setor_id or not funcionario_id or not periodo or not isinstance(valores, list):
+        return jsonify({"error": "Campos obrigatórios: setorId, funcionarioId, periodo, valores[]"}), 400
+
+    try:
+        if len(periodo) == 7:
+            periodo_date = datetime.strptime(periodo + "-01", "%Y-%m-%d").date()
+        else:
+            periodo_date = datetime.strptime(periodo, "%Y-%m-%d").date()
+        periodo_date = periodo_date.replace(day=1)
+    except Exception:
+        return jsonify({"error": "periodo inválido. Use YYYY-MM ou YYYY-MM-01"}), 400
+
+    now = datetime.utcnow()
+
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        for item in valores:
+            ind_id = item.get("indicadorId")
+            valor = item.get("valor")
+            if not ind_id:
+                continue
+            cur.execute("""
+                INSERT INTO ZDR (ZDR_INDICADOR_ID, ZDR_SETOR_ID, ZDR_FUNCIONARIO_ID, ZDR_PERIODO, ZDR_VALOR, ZDR_CRIADO_EM)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, ind_id, setor_id, funcionario_id, periodo_date, str(valor) if valor is not None else None, now)
+        conn.commit()
+
+    return jsonify({"ok": True})
+
+@app.route('/api/drafts', methods=['GET'])
+def api_listar_drafts():
+    setor_id = request.args.get('setor_id', type=int)
+    periodo = request.args.get('periodo')
+    if not setor_id:
+        return jsonify({"error": "setor_id é obrigatório"}), 400
+
+    periodo_date = None
+    if periodo:
+        try:
+            if len(periodo) == 7:
+                periodo_date = datetime.strptime(periodo + "-01", "%Y-%m-%d").date().replace(day=1)
+            else:
+                periodo_date = datetime.strptime(periodo, "%Y-%m-%d").date().replace(day=1)
+        except Exception:
+            return jsonify({"error": "periodo inválido. Use YYYY-MM ou YYYY-MM-01"}), 400
+
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        if periodo_date:
+            cur.execute("""
+                SELECT ZDR_ID, ZDR_INDICADOR_ID, ZDR_SETOR_ID, ZDR_FUNCIONARIO_ID, ZDR_PERIODO, ZDR_VALOR, ZDR_CRIADO_EM
+                FROM ZDR
+                WHERE ZDR_SETOR_ID = ? AND ZDR_PERIODO = ?
+                ORDER BY ZDR_CRIADO_EM DESC
+            """, setor_id, periodo_date)
+        else:
+            cur.execute("""
+                SELECT TOP 500 ZDR_ID, ZDR_INDICADOR_ID, ZDR_SETOR_ID, ZDR_FUNCIONARIO_ID, ZDR_PERIODO, ZDR_VALOR, ZDR_CRIADO_EM
+                FROM ZDR
+                WHERE ZDR_SETOR_ID = ?
+                ORDER BY ZDR_CRIADO_EM DESC
+            """, setor_id)
+        rows = cur.fetchall()
+        return jsonify(_rows_to_dicts(cur, rows))
+
+
 if __name__ == '__main__':
     print("=" * 70)
     print("🚀 SERVIDOR FLASK INICIADO")

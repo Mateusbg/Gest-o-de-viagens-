@@ -1,143 +1,53 @@
-﻿# 🚛 Análise de Viagens - Sistema Cobli
+# 📊 Sistema de Indicadores (Flask + SQL Server)
 
-Sistema de análise e visualização de viagens entre Lavra e Britador, com cálculo automático de toneladas transportadas e geração de gráficos interativos [web:3][web:9].
+Este projeto foi ajustado para **rodar localmente** (sem Vercel) e já está com **endpoints prontos** para salvar/ler indicadores no **SQL Server**.
 
-## 📋 Descrição
+## ✅ Como rodar local (Windows)
 
-Este programa processa arquivos Excel exportados do sistema Cobli para identificar e analisar viagens válidas entre pontos de Lavra e Britador [web:1]. Ele calcula automaticamente o total de toneladas transportadas por motorista utilizando NumPy e gera visualizações interativas com Plotly.
-
-## ✨ Funcionalidades
-
-- **Processamento automatizado** de planilhas Excel do Cobli
-- **Identificação inteligente** de viagens válidas (Lavra → Britador)
-- **Cálculo preciso** de toneladas transportadas usando NumPy
-- **Visualizações interativas** com 4 tipos de gráficos Plotly
-- **Análise por motorista**: viagens realizadas e toneladas movimentadas
-- **Rastreamento de veículos**: identifica quais carros cada motorista utilizou
-- **Interface gráfica amigável** desenvolvida com Tkinter
-
-## 🛠️ Tecnologias Utilizadas
-
-- **Python 3.x**
-- **NumPy** - Cálculos numéricos otimizados
-- **Pandas** - Manipulação e análise de dados
-- **Plotly** - Gráficos interativos
-- **Tkinter** - Interface gráfica
-
-## 📦 Instalação
-
-### Pré-requisitos
-
-Certifique-se de ter Python 3.7 ou superior instalado [web:9].
-
-### Dependências
-
-Instale as bibliotecas necessárias:
-
+1) Crie e ative um venv:
 ```bash
-pip install numpy pandas plotly openpyxl
-Download
-Clone o repositório:
+python -m venv .venv
+.\.venv\Scripts\activate
+```
 
-bash
-git clone https://github.com/seu-usuario/analise-viagens-cobli.git
-cd analise-viagens-cobli
-🚀 Como Usar
-Execute o programa:
+2) Instale dependências:
+```bash
+pip install -r requirements.txt
+```
 
-bash
-python analise_viagens.py
-Clique em "Selecionar Arquivo Excel"
+3) Configure conexão com o SQL Server (PowerShell):
+```powershell
+$env:SQL_SERVER="SEU_SERVIDOR"      # ex: localhost\SQLEXPRESS
+$env:SQL_DATABASE="SEU_BANCO"
+$env:SQL_USER="SEU_USUARIO"         # se for login SQL
+$env:SQL_PASSWORD="SUA_SENHA"
+$env:SQL_DRIVER="ODBC Driver 18 for SQL Server"  # opcional
+# ou, se usar Windows Auth:
+# $env:SQL_TRUSTED_CONNECTION="true"
+```
 
-Escolha o arquivo exportado do sistema Cobli (formato .xlsx ou .xls)
+4) Crie as tabelas no SQL Server:
+- Execute o script: `sql/schema.sql`
 
-O programa irá:
+5) Rode o servidor:
+```bash
+python app.py
+```
 
-Processar as viagens automaticamente
+Acesse:
+- http://127.0.0.1:5000/
 
-Exibir uma janela com resultados detalhados em abas
+## 🔌 Endpoints (backend)
 
-Gerar 4 gráficos interativos no navegador
+- `GET /api/health` (use `?db=1` para testar o banco)
+- `GET /api/setores`
+- `GET /api/indicadores?setor_id=1`
+- `POST /api/valores` (salvar valores)
+- `POST /api/drafts` (salvar rascunhos)
+- `GET /api/drafts?setor_id=1&periodo=2026-01`
 
-📊 Gráficos Gerados
-O sistema gera automaticamente 4 visualizações interativas [web:3]:
+> Observação: o frontend atual ainda tem regras de login/permite memória local, mas o backend já está pronto para persistir no SQL Server via API.
 
-Barras - Total de toneladas por motorista (Top 15)
+## 🧹 O que foi removido
 
-Pizza - Distribuição percentual de viagens (Top 10)
-
-Barras agrupadas - Viagens por motorista e veículo (Top 5)
-
-Barras empilhadas - Toneladas por motorista e veículo (Top 5)
-
-⚙️ Configuração
-Toneladas por Veículo
-Edite o dicionário TONELADAS_POR_VEICULO no código para ajustar as capacidades:
-
-python
-TONELADAS_POR_VEICULO = {
-    'SK-01': 68,
-    'SK-02': 68,
-    'SK-03': 70,
-    'SK-04': 70,
-    'SK-05': 65,
-}
-A tonelagem padrão para veículos não cadastrados é 68 toneladas.
-
-📁 Estrutura dos Dados
-Viagem Válida
-Uma viagem é considerada válida quando [web:9]:
-
-✅ Saída de local contendo "Lavra"
-
-✅ Entrada em local contendo "Britador" ou "Descarga"
-
-✅ Mesmo motorista
-
-✅ Mesmo veículo (placa)
-
-✅ Mesma data
-
-Formato do Excel
-O arquivo deve conter as colunas [web:1]:
-
-Placa
-
-Motorista associado
-
-Data e horário de entrada no local
-
-Data e horário de saída do local
-
-Nome do local
-
-📱 Interface
-O sistema possui 4 abas de análise [web:3]:
-
-Análise de Toneladas - Ranking de motoristas por toneladas transportadas
-
-Carros por Motorista - Veículos utilizados por cada motorista
-
-Viagens por Motorista - Contagem simples de viagens
-
-Detalhes das Viagens - Informações completas de cada viagem
-
-👨‍💻 Autor
-Mateus Barbosa
-
-📅 Versão
-Versão atual: 2.0
-
-Data: 06/01/2026
-
-📝 Licença
-Este projeto pode ser usado livremente para análises internas de transporte e logística [web:4].
-
-🤝 Contribuições
-Sugestões e melhorias são bem-vindas! Sinta-se à vontade para abrir issues ou enviar pull requests [web:3].
-
-📧 Suporte
-Para dúvidas ou problemas, abra uma issue no repositório [web:3].
-
-⭐ Se este projeto foi útil para você, considere dar uma estrela no repositório!
-
+- Configurações e pasta de deploy **Vercel** (vercel.json / api handler / runtime).

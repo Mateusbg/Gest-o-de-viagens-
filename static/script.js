@@ -1,4 +1,4 @@
-S// ===== BASE DE DADOS =====
+// ===== BASE DE DADOS =====
 const usuariosDB = [
     { id: 1, email: 'ad', senha: '1120', nome: 'Administrador' },
     { id: 2, email: 'compras', senha: '123456', nome: 'Supervisor de compras' },
