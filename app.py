@@ -695,4 +695,4 @@ if __name__ == '__main__':
     print("📍 Acesse: http://127.0.0.1:5000")
     print("🔧 Debug: ATIVO (sem reloader)")
     print("=" * 70)
-    app.run(debug=True, port=5000, host='127.0.0.1', use_reloader=False)
+    app.run(debug=True, port=5000, host='0.0.0.0', use_reloader=False)
