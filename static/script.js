@@ -284,17 +284,14 @@ const setores = [
 
 // VARIÁVEIS GLOBAIS
 let currentUser = null;
+
+let authToken = localStorage.getItem('authToken') || null;
 let currentSector = null;
 let registrosDB = [];
 
 // ===== PERFIL / REGRAS =====
-function getUserPerfil(user) {
-    if (!user) return 'USER';
-    const nome = (user.nome || '').toLowerCase();
-    const email = (user.email || '').toLowerCase();
-    if (email === 'ad' || nome.includes('administrador') || email === 'ti') return 'GESTAO';
-    if (nome.includes('lider')) return 'LIDER';
-    return 'USER';
+function getUserPerfil(u) {
+    return u?.perfil || 'LEITOR';
 }
 
 function normalizeKey(s) {
@@ -351,7 +348,10 @@ function buildValoresPayload() {
 async function apiPost(url, body) {
     const resp = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        },
         body: JSON.stringify(body)
     });
     const data = await resp.json().catch(() => ({}));
@@ -410,30 +410,52 @@ function togglePassword() {
     input.type = input.type === 'password' ? 'text' : 'password';
 }
 
-function handleLogin() {
+async function handleLogin() {
     const email = document.getElementById('emailInput').value;
     const senha = document.getElementById('senhaInput').value;
+
     if (!email || !senha) {
         alert('Por favor, preencha todos os campos!');
         return;
     }
-    const usuario = usuariosDB.find(u => u.email === email && u.senha === senha);
-    if (usuario) {
-        currentUser = usuario;
-        document.getElementById('userNameDisplay').textContent = usuario.nome;
+
+    try {
+        const resp = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, senha })
+        });
+
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) {
+            throw new Error(data?.error || 'Login inválido');
+        }
+
+        authToken = data.token;
+        localStorage.setItem('authToken', authToken);
+
+        currentUser = {
+            id: data.user.id,
+            email: data.user.email,
+            nome: data.user.nome,
+            setor_id: data.user.setor_id,
+            nivel: data.user.nivel,
+            perfil: data.user.perfil
+        };
+
+        document.getElementById('userNameDisplay').textContent = currentUser.nome;
         showSectorsScreen();
-    } else {
-        alert('Email ou senha inválidos!');
+
+    } catch (err) {
+        alert(err.message || 'Erro ao logar');
     }
 }
 
 function handleLogout() {
     currentUser = null;
-    currentSector = null;
-    document.getElementById('emailInput').value = '';
-    document.getElementById('senhaInput').value = '';
-    document.getElementById('senhaInput').type = 'password';
-    showLoginScreen();
+    authToken = null;
+    localStorage.removeItem('authToken');
+    location.reload();
 }
 
 // ===== NAVEGAÇÃO DE TELAS =====
