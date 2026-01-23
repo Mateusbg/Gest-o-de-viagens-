@@ -1,328 +1,110 @@
-// ===== BASE DE DADOS =====
-const usuariosDB = [
-    { id: 1, email: 'ad', senha: '1120', nome: 'Admin' },
-    { id: 2, email: 'compras', senha: '123456', nome: 'Supervisor de compras' },
-    { id: 3, email: 'operacao', senha: '123456', nome: 'Lider Operaçoes' },
-    { id: 4, email: 'ambiental', senha: '123456', nome: 'Ambiental'},
-    { id: 5, email: 'balanca', senha: '123456', nome: 'Lider balança'},
-    { id: 6, email: 'betumejn', senha: '123456', nome: 'Lider Betume JN'},
-    { id: 7, email: 'betume', senha: '123456', nome: 'Lider Betume Matriz'},
-    { id: 8, email: 'comercial', senha: '123456', nome: 'Lider comercial'},
-    { id: 9, email: 'comprasp', senha: '123456', nome: 'Compras - Paulão'},
-    { id: 10, email: 'conferencia', senha: '123456', nome: 'Conferencia'},
-    { id: 11, email: 'desmonte', senha: '123456', nome: 'Lider desmonte'},
-    { id: 12, email: 'estoque', senha: '123456', nome: 'Daniel'},
-    { id: 13, email: 'faxineiras', senha: '123456', nome: 'faxineiras'},
-    { id: 14, email: 'financeiro', senha: '123456', nome: 'Lider Financeiro'},
-    { id: 15, email: 'lavador', senha: '123456', nome: 'Lider Lavador'},
-    { id: 16, email: 'mecanica', senha: '123456', nome: 'Otavio'},
-    { id: 17, email: 'solda', senha: '123456', nome: 'Priscilla'},
-    { id: 18, email: 'postofiscal', senha: '123456', nome: 'Posto fiscal'},
-    { id: 19, email: 'recepcao', senha: '123456', nome: 'Recepcao'},
-    { id: 20, email: 'suportet', senha: '123456', nome: 'Suporte Transpedra'},
-    { id: 21, email: 'rh', senha: '123456', nome: 'Camila'},
-    { id: 22, email: 'sesmt', senha: '123456', nome: 'SESMT'},
-    { id: 23, email: 'TI', senha: '123456', nome: 'Julio'},
-    { id: 24, email: 'tranportei', senha: '123456', nome: 'Transporte Interno'},
-];
-
-
-const setores = [
-    {
-        id: 1,
-        nome: 'Ambiental',
-        classe: 'sector-blue',
-        indicadores: [
-            { id: 1, nome: 'Custo mensal Transpedra (pneus + combustível) (R$/ton transportada) ', valor: '', unidade: 'R$/ton', meta: 150000 },
-            { id: 2, nome: 'Número de ocorrencias ambientais', valor: '', unidade: 'un', meta: 50 },
-            { id: 3, nome: 'Número de ocorrencias ambientais', valor: '', unidade: 'un', meta: 5 },
-            { id: 4, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 2,
-        nome: 'Balança',
-        classe: 'sector-green',
-        indicadores: [
-            { id: 1, nome: 'Tempo Médio de Atendimento ao cliente (minutos)', valor: '', unidade: 'min', meta: 5 },
-            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' },
-        ]
-    },
-    {
-        id: 3,
-        nome: 'Betume - JN',
-        classe: 'sector-purple',
-        indicadores: [
-            { id: 1, nome: 'Consumo de energia Betume João Neiva (kwh/ton)', valor: '', unidade: 'kwh/ton', meta: 50 },
-            { id: 2, nome: 'Consumo de oleo BPF (L/ton)', valor: '', unidade: 'L/ton', meta: 5 },
-            { id: 3, nome: 'Economia de CAP Betume JN (%)', valor: '', unidade: '%', meta: 10 },
-            { id: 4, nome: 'Faturamento Betume Joao Neiva (R$)', valor: '', unidade: 'R$', meta: 500000 },
-            { id: 5, nome: 'Custo médio de manutenção R$/ton', valor: '', unidade: 'R$/ton', meta: 20 },
-            { id: 6, nome: 'Turnover acumulado Betume João Neiva (%)', valor: '', unidade: '%', meta: 5 },
-            { id: 7, nome: 'Laboratório - Tempo máx de envio de resultados (horas)', valor: '', unidade: 'horas', meta: 48 },
-            { id: 8, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 4,
-        nome: 'Betume - Matriz',
-        classe: 'sector-red',
-        indicadores: [
-            { id: 1, nome: 'Consumo de gás Betume Matriz (m³/ton)', valor: '', unidade: 'm³/ton', meta: 30 },
-            { id: 2, nome: 'Consumo de energia Betume Matriz (kwh/ton)', valor: '', unidade: 'kwh/ton', meta: 40 },
-            { id: 3, nome: 'Economia de CAP Betume Matriz (%)', valor: '', unidade: '%', meta: 8 },
-            { id: 4, nome: 'Absenteísmo Operacional Betume Matriz (%)', valor: '', unidade: '%', meta: 3 },
-            { id: 5, nome: 'Custo médio de manutenção Betume Matriz R$/ton', valor: '', unidade: 'R$/ton', meta: 25 },
-            { id: 6, nome: '% de reclamações revertidas - lab Betume', valor: '', unidade: '%', meta: 5 },
-            { id: 7, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-
-        ]
-    },
-    {
-        id: 5,
-        nome: 'Comercial',
-        classe: 'sector-blue',
-        indicadores: [
-            { id: 1, nome: 'Quantidade vendida (ton) - Brasitalia', valor: '', unidade: 'ton', meta: 10000 },
-            { id: 2, nome: 'Preço médio (R$) - Brasitalia', valor: '', unidade: 'R$', meta: 250 },
-            { id: 3, nome: '% pó de pedra - Brasitalia', valor: '', unidade: '%', meta: 5 },
-            { id: 4, nome: 'Número de clientes novos Brasitalia + Betume', valor: '', unidade: 'un', meta: 10 },
-            { id: 5, nome: 'Número de clientes mantidos Brasitalia + Betume', valor: '', unidade: 'un', meta: 50 },
-            { id: 6, nome: 'Preço médio (R$) - Produtos sem CAP convencional ou polímero - Betume', valor: '', unidade: 'R$', meta: 300 },
-            { id: 7, nome: 'Preço médio (R$) - Produtos com CAP convencional - Betume', valor: '', unidade: 'R$', meta: 350 },
-            { id: 8, nome: 'Quantidade vendida (ton) - Betume Matriz', valor: '', unidade: 'ton', meta: 8000 },
-            { id: 9, nome: 'Faturamento (R$) - Betume joao neiva', valor: '', unidade: 'R$', meta: 400000 },
-            { id: 10, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 6,
-        nome: 'Compras',
-        classe: 'sector-green',
-        indicadores: [
-            { id: 1, nome: 'índice de economia em compras (%)', valor: '', unidade: '%', meta: 5 },
-            { id: 2, nome: 'Tempo de colocação do pedido de compra (dias)', valor: '', unidade: 'dias', meta: 3 },
-            { id: 3, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 7,
-        nome: 'Compras - Paulão',
-        classe: 'sector-purple',
-        indicadores: [
-            { id: 1, nome: 'Consumo de combustível Paulão (L/Km)', valor: '', unidade: 'L/Km', meta: 10 },
-            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 8,
-        nome: 'Conferencia ',
-        classe: 'sector-red',
-        indicadores: [
-            { id: 1, nome: 'Número de ocorrências de cliente levar produto errado (uni)', valor: '', unidade: 'un', meta: 2 },
-            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 9,
-        nome: 'Desmonte',
-        classe: 'sector-blue',
-        indicadores: [
-            { id: 1, nome: 'Absenteísmo do desmonte (%)', valor: '', unidade: '%', meta: 3 },
-            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 10,
-        nome: 'Estoque',
-        classe: 'sector-green',
-        indicadores: [
-            { id: 1, nome: 'sem indicador definido', valor: '', unidade: 'un', meta: 0 },
-            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 11,
-        nome: 'Faxineiras',
-        classe: 'sector-purple',
-        indicadores: [
-            { id: 1, nome: 'Custo com material de limpeza (R$)', valor: '', unidade: 'R$', meta: 2000 },
-            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 12,
-        nome: 'Financeiro',
-        classe: 'sector-red',
-        indicadores: [
-            { id: 1, nome: 'Número de pedidos de notas que financeiro pediu e já tinham descido' , valor: '', unidade: 'un', meta: 0 },
-            { id: 2, nome: 'Turnover setor financeiro (%)', valor: '', unidade: '%', meta: 5 },
-            { id: 3, nome: 'Número de títulos de inadimplência levados a cartório', valor: '', unidade: 'un', meta: 10 },
-            { id: 4, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 13,
-        nome: 'Lavador',
-        classe: 'sector-blue',
-        indicadores: [
-            { id: 1, nome: 'Custo lavador (R$)', valor: '', unidade: 'R$', meta: 5000 },
-            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 14,
-        nome: 'Oficina Mecanica',
-        classe: 'sector-green',
-        indicadores: [ 
-            { id: 1, nome: 'Absenteísmo oficina mecânica (%)', valor: '', unidade: '%', meta: 4 },
-            { id: 2, nome: 'Custo mensal borracharia (R$/ton produzidas)', valor: '', unidade: 'R$/ton', meta: 15 },
-            { id: 3, nome: 'Custo mensal com pneus Brasitalia (R$/ton produzida) ', valor: '', unidade: 'R$/ton', meta: 10 },
-            { id: 4, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 15,
-        nome: 'Oficina Solda',
-        classe: 'sector-purple',
-        indicadores: [
-            { id: 1, nome: 'Turnover Solda/caldeiraria (%)', valor: '', unidade: '%', meta: 5 },
-            { id: 2, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 16,
-        nome: 'Posto fiscal',
-        classe: 'sector-red',
-        indicadores: [
-            { id: 1, nome: '% de notas que desceram com atraso (%)', valor: '', unidade: '%', meta: 2 },
-            { id: 2, nome: 'Índice de erro no lançamento de NF (%)', valor: '', unidade: '%', meta: 1 },
-            { id: 3, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 17,
-        nome: 'Recepçao',
-        classe: 'sector-blue',
-        indicadores: [
-            { id: 1, nome: 'Indice de pontos atualizados e enviado no prazo(%)', valor: '', unidade: '%', meta: 98 },
-            { id: 2, nome: 'Número de erros na FOPAG relacionado ao ponto (uni)', valor: '', unidade: 'un', meta: 2 },
-            { id: 3, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 18,
-        nome: 'Suporte transpedra',
-        classe: 'sector-green',
-        indicadores: [
-            { id: 1, nome: 'Número de erros das paginas diárias (uni)', valor: '', unidade: 'un', meta: 5 },
-            { id: 2, nome: 'Entregar páginas diárias da transpedra no dia/hora certa (%)', valor: '', unidade: '%', meta: 99 },
-            { id: 3, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 19,
-        nome: 'RH',
-        classe: 'sector-purple',
-        indicadores: [
-            { id: 1, nome: 'Índice de efetividade das contratações (%)', valor: '', unidade: '%', meta: 90 },
-            { id: 2, nome: 'Absenteísmo mensal do setor RH + recepção + faxineiras (%)', valor: '', unidade: '%', meta: 3 },
-            { id: 3, nome: 'Índice de erro na FOPAG/ticket alimentação (%)', valor: '', unidade: '%', meta: 1 },
-            { id: 4, nome: 'Turnover acumulado do setor RH + recepção + faxineiras (%)', valor: '', unidade: '%', meta: 5 },
-            { id: 5, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 20,
-        nome: 'Segurança do Trabalho(SESMT)',
-        classe: 'sector-red',
-        indicadores: [
-            { id: 1, nome: 'Número de notificações de órgãos ', valor: '', unidade: 'un', meta: 0 },
-            { id: 2, nome: 'Número de acidentes dentro da empresa (un)', valor: '', unidade: 'un', meta: 2 },
-            { id: 3, nome: 'Número de acidentes dentro da empresa com afastamento (un)', valor: '', unidade: 'un', meta: 1 },
-            { id: 4, nome: 'Absenteísmo viveiristas (%)', valor: '', unidade: '%', meta: 3 },
-            { id: 5, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 21,
-        nome: 'TI',
-        classe: 'sector-blue',
-        indicadores: [
-            { id: 1, nome: 'Nota de satisfação com qualidade do atendimento - TI (/10)', valor: '', unidade: '/10', meta: 9 },
-            { id: 2, nome: 'Nota de satisfação com tempo de atendimento - TI (/10)', valor: '', unidade: '/10', meta: 9 },
-            { id: 3, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 22,
-        nome: 'Transpedra',
-        classe: 'sector-green',
-        indicadores: [
-            { id: 1, nome: 'Custo mensal com pneus Transpedra (R$/ton transportada) ', valor: '', unidade: 'R$/ton', meta: 10 },
-            { id: 2, nome: 'Consumo mensal de combustivel Transpedra (R$/ton transportada) ', valor: '', unidade: 'R$/ton', meta: 140000 },
-            { id: 3, nome: 'Produtividade - No de viagens totais motoristas Transpedra', valor: '', unidade: 'viagens', meta: 5000 },
-            { id: 4, nome: 'Turnover acumulado Transpedra (%)', valor: '', unidade: '%', meta: 5 },
-            { id: 5, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    },
-    {
-        id: 23,
-        nome : 'Transporte Interno',
-        classe: 'sector-purple',
-        indicadores: [
-            { id: 1, nome: 'Toneladas produzidas/dia (ton)', valor: '', unidade: 'ton', meta: 3000 },
-            { id: 2, nome: 'Nota média de condução dos motoristas (un)', valor: '', unidade: 'un', meta: 95 },
-            { id: 3, nome: 'Custo com combustível (R$/ton produzida)', valor: '', unidade: 'R$/ton', meta: 20 },
-            { id: 4, nome: 'Custo de transporte (R$/ton produzida)', valor: '', unidade: 'R$/ton', meta: 30 },
-            { id: 5, nome: 'Absenteísmo operadores Rodrigo (%)', valor: '', unidade: '%', meta: 3 },
-            { id: 6, nome: 'Absenteísmo operadores Aloisio (%)', valor: '', unidade: '%', meta: 3 },
-            { id: 7, nome: 'Mês', valor: '', unidade: 'date', meta: null, tipo: 'date' }
-        ]
-    }
-];
-
 // VARIÁVEIS GLOBAIS
 let currentUser = null;
+
+function normalizeToken(token) {
+    if (!token || typeof token !== 'string') return null;
+    const trimmed = token.trim();
+    if (!trimmed) return null;
+    const lower = trimmed.toLowerCase();
+    if (lower === 'null' || lower === 'undefined') return null;
+    if (trimmed.split('.').length !== 3) return null;
+    return trimmed;
+}
+
+let authToken = normalizeToken(localStorage.getItem('authToken'));
 let currentSector = null;
 let registrosDB = [];
+let setoresApi = [];
+let adminIndicadoresCache = {};
+const adminState = {
+    users: [],
+    setores: [],
+    indicadores: [],
+    selectedUserId: null,
+    selectedIndicadorId: null,
+    indicadorSetorId: null
+};
 
 // ===== PERFIL / REGRAS =====
-function getUserPerfil(user) {
-    if (!user) return 'USER';
-    const nome = (user.nome || '').toLowerCase();
-    const email = (user.email || '').toLowerCase();
-    if (email === 'ad' || nome.includes('administrador') || email === 'ti') return 'GESTAO';
-    if (nome.includes('lider')) return 'LIDER';
-    return 'USER';
+function getUserPerfil(u) {
+    return u?.perfil || 'LEITOR';
 }
 
-function normalizeKey(s) {
-    return (s || '')
-        .toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]/g, '');
-}
-
-function getAllowedSectorIds(user) {
+function isAdminUser(user) {
     const perfil = getUserPerfil(user);
-    if (perfil === 'GESTAO') return null; // todos
-
-    const emailKey = normalizeKey(user?.email);
-    // tenta achar setor que "bate" com o email (ambiental -> Ambiental, balanca -> Balança, etc.)
-    const matched = setores
-        .filter(s => {
-            const sk = normalizeKey(s.nome);
-            return sk.includes(emailKey) || emailKey.includes(sk);
-        })
-        .map(s => s.id);
-
-    return matched.length ? matched : null; // fallback: todos
+    return perfil === 'GESTAO' || perfil === 'ADM';
 }
+
+
+function normalizeSetorFromApi(s, index) {
+    const id = s?.ZSE_ID ?? s?.id ?? null;
+    const nome = s?.ZSE_NOME ?? s?.nome ?? '';
+    return {
+        id: id,
+        nome: nome,
+        classe: sectorClassFromIndex(index)
+    };
+}
+
+function sectorClassFromIndex(index) {
+    const classes = ['sector-blue', 'sector-green', 'sector-purple', 'sector-red'];
+    return classes[index % classes.length];
+}
+
+function normalizeIndicadorFromApi(i) {
+    return {
+        id: i?.ZIN_ID ?? i?.id ?? null,
+        codigo: i?.ZIN_CODIGO ?? i?.codigo ?? null,
+        nome: i?.ZIN_NOME ?? i?.nome ?? '',
+        tipo: i?.ZIN_TIPO ?? i?.tipo ?? null,
+        unidade: i?.ZIN_UNIDADE ?? i?.unidade ?? null,
+        meta: i?.ZIN_META ?? i?.meta ?? null,
+        responsavel_id: i?.ZIN_RESPONSAVEL_ID ?? i?.responsavel_id ?? i?.responsavelId ?? null,
+        read_only: i?.read_only ?? false,
+        valor: null
+    };
+}
+
+function parseCodigoNumber(codigo) {
+    if (codigo === null || codigo === undefined) return null;
+    const str = String(codigo);
+    const match = str.match(/(\d+)/g);
+    if (!match || !match.length) return null;
+    const last = match[match.length - 1];
+    const num = Number(last);
+    return Number.isNaN(num) ? null : num;
+}
+
+function getNextIndicadorCodigo(items) {
+    let max = 0;
+    let found = false;
+    (items || []).forEach(i => {
+        const codigo = i?.ZIN_CODIGO ?? i?.codigo ?? null;
+        const num = parseCodigoNumber(codigo);
+        if (num !== null) {
+            found = true;
+            if (num > max) max = num;
+        }
+    });
+    const next = found ? max + 1 : (items?.length || 0) + 1;
+    return String(next);
+}
+
+function setIndicadorCodigoInput(value) {
+    const input = document.getElementById('adminIndicadorCodigo');
+    if (input && value) input.value = value;
+}
+
+function isDateIndicator(ind) {
+    const tipo = (ind?.tipo || '').toString().toLowerCase();
+    const unidade = (ind?.unidade || '').toString().toLowerCase();
+    return tipo === 'date' || unidade === 'date';
+}
+
 
 function getPeriodoAtualOuDoFormulario() {
     // procura um campo do tipo date ("Mês"/"Data") para extrair YYYY-MM
-    const dateInd = currentSector?.indicadores?.find(i => i.tipo === 'date' || i.unidade === 'date');
+    const dateInd = currentSector?.indicadores?.find(i => isDateIndicator(i));
     if (dateInd?.valor && typeof dateInd.valor === 'string') {
         // valor em ISO: YYYY-MM-DD
         const parts = dateInd.valor.split('-');
@@ -337,9 +119,11 @@ function getPeriodoAtualOuDoFormulario() {
 function buildValoresPayload() {
     // NÃO envia o campo date como indicador de valor
     return (currentSector?.indicadores || [])
-        .filter(i => !(i.tipo === 'date' || i.unidade === 'date'))
+        .filter(i => !isDateIndicator(i))
+        .filter(i => !i.read_only)
         .map(i => ({
-            indicadorCodigo: i.id,
+            indicadorId: i.id,
+            indicadorCodigo: i.codigo ?? i.id,
             indicadorNome: i.nome,
             tipo: i.tipo || (i.unidade === 'date' ? 'date' : 'number'),
             unidade: i.unidade || null,
@@ -349,9 +133,13 @@ function buildValoresPayload() {
 }
 
 async function apiPost(url, body) {
+    const token = normalizeToken(authToken);
     const resp = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(body)
     });
     const data = await resp.json().catch(() => ({}));
@@ -361,7 +149,40 @@ async function apiPost(url, body) {
     }
     return data;
 }
-let selectedFile = null;
+
+async function apiGet(url) {
+    const token = normalizeToken(authToken);
+    const resp = await fetch(url, {
+        method: 'GET',
+        headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+        const msg = data?.error || `Erro HTTP ${resp.status}`;
+        throw new Error(msg);
+    }
+    return data;
+}
+
+async function apiPut(url, body) {
+    const token = normalizeToken(authToken);
+    const resp = await fetch(url, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(body)
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+        const msg = data?.error || `Erro HTTP ${resp.status}`;
+        throw new Error(msg);
+    }
+    return data;
+}
 
 // ===== FUNÇÕES DE AUTO-FORMATAÇÃO DE DATA =====
 function autoFormatarData(input) {
@@ -410,35 +231,62 @@ function togglePassword() {
     input.type = input.type === 'password' ? 'text' : 'password';
 }
 
-function handleLogin() {
+async function handleLogin() {
     const email = document.getElementById('emailInput').value;
     const senha = document.getElementById('senhaInput').value;
+
     if (!email || !senha) {
         alert('Por favor, preencha todos os campos!');
         return;
     }
-    const usuario = usuariosDB.find(u => u.email === email && u.senha === senha);
-    if (usuario) {
-        currentUser = usuario;
-        document.getElementById('userNameDisplay').textContent = usuario.nome;
+
+    try {
+        const resp = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, senha })
+        });
+
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) {
+            throw new Error(data?.error || 'Login inválido');
+        }
+
+        authToken = normalizeToken(data.token);
+        if (!authToken) {
+            localStorage.removeItem('authToken');
+            throw new Error('Token inválido retornado pelo servidor');
+        }
+        localStorage.setItem('authToken', authToken);
+
+        currentUser = {
+            id: data.user.id,
+            email: data.user.email,
+            nome: data.user.nome,
+            setor_id: data.user.setor_id,
+            nivel: data.user.nivel,
+            perfil: data.user.perfil
+        };
+
+        document.getElementById('userNameDisplay').textContent = currentUser.nome;
+        updateAdminButton();
         showSectorsScreen();
-    } else {
-        alert('Email ou senha inválidos!');
+
+    } catch (err) {
+        alert(err.message || 'Erro ao logar');
     }
 }
 
 function handleLogout() {
     currentUser = null;
-    currentSector = null;
-    document.getElementById('emailInput').value = '';
-    document.getElementById('senhaInput').value = '';
-    document.getElementById('senhaInput').type = 'password';
-    showLoginScreen();
+    authToken = null;
+    localStorage.removeItem('authToken');
+    location.reload();
 }
 
 // ===== NAVEGAÇÃO DE TELAS =====
 function hideAllScreens() {
-    ['loginScreen', 'sectorsScreen', 'indicatorsScreen', 'cobliScreen'].forEach(id => {
+    ['loginScreen', 'sectorsScreen', 'indicatorsScreen', 'adminScreen'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -449,9 +297,20 @@ function showLoginScreen() {
     document.getElementById('loginScreen').classList.remove('hidden');
 }
 
+function updateAdminButton() {
+    const btn = document.getElementById('adminBtn');
+    if (!btn) return;
+    if (isAdminUser(currentUser)) {
+        btn.classList.remove('hidden');
+    } else {
+        btn.classList.add('hidden');
+    }
+}
+
 function showSectorsScreen() {
     loadSectors();
     updateHistoryDisplay();
+    updateAdminButton();
     hideAllScreens();
     document.getElementById('sectorsScreen').classList.remove('hidden');
 }
@@ -459,6 +318,74 @@ function showSectorsScreen() {
 function showIndicatorsScreen() {
     hideAllScreens();
     document.getElementById('indicatorsScreen').classList.remove('hidden');
+}
+
+function showAdminScreen() {
+    if (!isAdminUser(currentUser)) {
+        alert('Acesso negado');
+        return;
+    }
+    hideAllScreens();
+    document.getElementById('adminScreen').classList.remove('hidden');
+    showAdminSection('users');
+    showUsersSection('createUser');
+    loadAdminData();
+}
+
+function backToSectorsFromAdmin() {
+    hideAllScreens();
+    document.getElementById('sectorsScreen').classList.remove('hidden');
+    updateHistoryDisplay();
+}
+
+function showAdminSection(section) {
+    const users = document.getElementById('adminUsersSection');
+    const indicadores = document.getElementById('adminIndicadoresSection');
+    if (!users || !indicadores) return;
+    if (section === 'indicators') {
+        users.classList.add('hidden');
+        indicadores.classList.remove('hidden');
+    } else {
+        indicadores.classList.add('hidden');
+        users.classList.remove('hidden');
+    }
+}
+
+function showUsersSection(section) {
+    const createUser = document.getElementById('adminCreateUserCard');
+    const editUser = document.getElementById('adminEditUserCard');
+    const createSetor = document.getElementById('adminCreateSetorCard');
+    const editSetor = document.getElementById('adminEditSetorCard');
+    const usersTable = document.getElementById('adminUsersTableWrap');
+    const setoresTable = document.getElementById('adminSetoresTableWrap');
+    if (!createUser || !editUser || !createSetor || !editSetor || !usersTable || !setoresTable) return;
+
+    createUser.classList.add('hidden');
+    editUser.classList.add('hidden');
+    createSetor.classList.add('hidden');
+    editSetor.classList.add('hidden');
+    usersTable.classList.add('hidden');
+    setoresTable.classList.add('hidden');
+
+    if (section === 'editUser') {
+        editUser.classList.remove('hidden');
+        usersTable.classList.remove('hidden');
+        return;
+    }
+    if (section === 'listUsers') {
+        usersTable.classList.remove('hidden');
+        return;
+    }
+    if (section === 'createSetor') {
+        createSetor.classList.remove('hidden');
+        return;
+    }
+    if (section === 'editSetor') {
+        editSetor.classList.remove('hidden');
+        setoresTable.classList.remove('hidden');
+        return;
+    }
+    createUser.classList.remove('hidden');
 }
 
 function backToSectors() {
@@ -470,52 +397,81 @@ function backToSectors() {
     updateHistoryDisplay();
 }
 
-// ===== FUNÇÕES COBLI =====
-function openCobli() {
-    hideAllScreens();
-    const cobli = document.getElementById('cobliScreen');
-    if (cobli) cobli.classList.remove('hidden');
-}
+
 
 // ===== CARREGAR SETORES =====
-function loadSectors() {
+async function loadSectors() {
     const grid = document.getElementById('sectorsGrid');
+    if (!grid) return;
     grid.innerHTML = '';
-    const allowedIds = getAllowedSectorIds(currentUser);
-    const setoresVisiveis = allowedIds ? setores.filter(s => allowedIds.includes(s.id)) : setores;
-    setoresVisiveis.forEach(setor => {
-        const btn = document.createElement('button');
-        btn.className = `sector-btn ${setor.classe}`;
-        btn.innerHTML = `<h2>${setor.nome}</h2><p>${setor.indicadores.length} indicadores</p>`;
-        btn.onclick = () => openSector(setor);
-        grid.appendChild(btn);
-    });
+
+    try {
+        const setoresData = await apiGet('/api/setores');
+        const list = Array.isArray(setoresData) ? setoresData : [];
+        setoresApi = list.map((s, idx) => normalizeSetorFromApi(s, idx));
+
+        const counts = await Promise.all(
+            setoresApi.map(s =>
+                apiGet(`/api/indicadores?setorId=${encodeURIComponent(s.id)}`)
+                    .then(items => ({ id: s.id, count: Array.isArray(items) ? items.length : 0 }))
+                    .catch(() => ({ id: s.id, count: 0 }))
+            )
+        );
+        const countMap = new Map(counts.map(c => [String(c.id), c.count]));
+
+        setoresApi.forEach(setor => {
+            const btn = document.createElement('button');
+            const count = countMap.get(String(setor.id)) ?? 0;
+            btn.className = `sector-btn ${setor.classe}`;
+            btn.innerHTML = `<h2>${setor.nome}</h2><p>${count} indicadores</p>`;
+            btn.onclick = () => openSector(setor);
+            grid.appendChild(btn);
+        });
+    } catch (err) {
+        alert(`Erro ao carregar setores: ${err.message}`);
+    }
 }
 
-function openSector(setor) {
-    currentSector = JSON.parse(JSON.stringify(setor));
-    document.getElementById('sectorTitle').textContent = setor.nome;
-    const form = document.getElementById('indicatorsForm');
-    form.innerHTML = '';
-    currentSector.indicadores.forEach(indicador => {
-        const div = document.createElement('div');
-        div.className = 'indicator-item';
-        const isDateField = indicador.tipo === 'date' || indicador.unidade === 'date';
-        let inputHtml = '';
-        if (isDateField) {
-            const valorBR = indicador.valor ? converterDataParaBR(indicador.valor) : '';
-            inputHtml = `<input type="text" class="indicator-input" data-id="${indicador.id}" value="${valorBR}" placeholder="DD/MM/AAAA" maxlength="10" oninput="autoFormatarData(this)" onchange="updateIndicatorDate(${indicador.id}, this.value)" style="font-family: monospace; letter-spacing: 1px;">`;
-        } else {
-            inputHtml = `<input type="number" step="0.01" placeholder="Digite o valor" class="indicator-input" data-id="${indicador.id}" value="${indicador.valor}" onchange="updateIndicator(${indicador.id}, this.value)">`;
-        }
-        const metaHtml = isDateField ? '<div class="indicator-meta">Formato: DD/MM/AAAA</div>' : `<div class="indicator-meta">Meta: ${indicador.meta} ${indicador.unidade}</div>`;
-        div.innerHTML = `<label class="indicator-label">${indicador.nome}</label>${metaHtml}${inputHtml}`;
-        form.appendChild(div);
-    });
+async function openSector(setor) {
+    try {
+        const data = await apiGet(`/api/indicadores?setorId=${encodeURIComponent(setor.id)}`);
+        const indicadores = (Array.isArray(data) ? data : []).map(i => normalizeIndicadorFromApi(i));
+        currentSector = {
+            id: setor.id,
+            nome: setor.nome,
+            indicadores: indicadores
+        };
+        document.getElementById('sectorTitle').textContent = setor.nome;
+        const form = document.getElementById('indicatorsForm');
+        form.innerHTML = '';
+        currentSector.indicadores.forEach(indicador => {
+            const div = document.createElement('div');
+            div.className = 'indicator-item';
+            const isDateField = isDateIndicator(indicador);
+            const readOnly = indicador.read_only || (currentUser?.nivel === 1);
+            const readonlyAttr = readOnly ? 'disabled' : '';
+            let inputHtml = '';
+            if (isDateField) {
+                const valorBR = indicador.valor ? converterDataParaBR(indicador.valor) : '';
+                inputHtml = `<input type="text" class="indicator-input" data-id="${indicador.id}" value="${valorBR}" placeholder="DD/MM/AAAA" maxlength="10" oninput="autoFormatarData(this)" onchange="updateIndicatorDate(${indicador.id}, this.value)" style="font-family: monospace; letter-spacing: 1px;" ${readonlyAttr}>`;
+            } else {
+                inputHtml = `<input type="number" step="0.01" placeholder="Digite o valor" class="indicator-input" data-id="${indicador.id}" value="${indicador.valor ?? ''}" onchange="updateIndicator(${indicador.id}, this.value)" ${readonlyAttr}>`;
+            }
+            const metaHtml = isDateField
+                ? '<div class="indicator-meta">Formato: DD/MM/AAAA</div>'
+                : `<div class="indicator-meta">Meta: ${indicador.meta ?? '-'} ${indicador.unidade ?? ''}</div>`;
+            div.innerHTML = `<label class="indicator-label">${indicador.nome}</label>${metaHtml}${inputHtml}`;
+            form.appendChild(div);
+        });
+    } catch (err) {
+        alert(`Erro ao carregar indicadores: ${err.message}`);
+        return;
+    }
 
-    // Ajusta botões conforme perfil
+    // Ajusta botoes conforme perfil
     const perfil = getUserPerfil(currentUser);
     const sendBtn = document.getElementById('sendBtn');
+    const saveBtn = document.getElementById('saveBtn');
     if (sendBtn) {
         if (perfil === 'LIDER' || perfil === 'GESTAO') {
             sendBtn.classList.remove('hidden');
@@ -523,16 +479,24 @@ function openSector(setor) {
             sendBtn.classList.add('hidden');
         }
     }
+    if (saveBtn) {
+        if (currentUser?.nivel === 1) {
+            saveBtn.classList.add('hidden');
+            if (sendBtn) sendBtn.classList.add('hidden');
+        } else {
+            saveBtn.classList.remove('hidden');
+        }
+    }
     showIndicatorsScreen();
 }
 
 function updateIndicator(id, value) {
-    const ind = currentSector.indicadores.find(i => i.id === id);
+    const ind = currentSector.indicadores.find(i => Number(i.id) === Number(id));
     if (ind) ind.valor = value;
 }
 
 function updateIndicatorDate(id, value) {
-    const ind = currentSector.indicadores.find(i => i.id === id);
+    const ind = currentSector.indicadores.find(i => Number(i.id) === Number(id));
     if (!ind) return;
     if (!value) {
         ind.valor = '';
@@ -554,6 +518,7 @@ function handleSave() {
     const valores = buildValoresPayload();
 
     const body = {
+        setorId: currentSector.id,
         setorNome: currentSector.nome,
         funcionarioEmail: currentUser.email,
         funcionarioNome: currentUser.nome,
@@ -589,6 +554,7 @@ function handleSendDB() {
     const valores = buildValoresPayload();
 
     const body = {
+        setorId: currentSector.id,
         setorNome: currentSector.nome,
         funcionarioEmail: currentUser.email,
         funcionarioNome: currentUser.nome,
@@ -636,97 +602,485 @@ function updateHistoryDisplay() {
     }
 }
 
-// ===== FUNÇÕES COBLI - UPLOAD =====
-async function uploadFile() {
-    if (!selectedFile) {
-        alert('Selecione um arquivo Excel!');
-        return;
+// ===== ADMIN =====
+function getSetorIdValue(s) {
+    return s?.ZSE_ID ?? s?.id ?? null;
+}
+
+function getSetorNomeValue(s) {
+    return s?.ZSE_NOME ?? s?.nome ?? '';
+}
+
+function fillSetorSelect(selectEl, setoresList, includeEmpty) {
+    if (!selectEl) return;
+    selectEl.innerHTML = '';
+    if (includeEmpty) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Sem setor';
+        selectEl.appendChild(opt);
     }
-    document.getElementById('loadingCobli').classList.remove('hidden');
-    document.getElementById('cobliResults').classList.add('hidden');
-    const formData = new FormData();
-    formData.append('file', selectedFile);
+    setoresList.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = getSetorIdValue(s);
+        opt.textContent = getSetorNomeValue(s);
+        selectEl.appendChild(opt);
+    });
+}
+
+function fillNivelSelect(selectEl) {
+    if (!selectEl) return;
+    const levels = [
+        { v: 1, t: 'LEITOR' },
+        { v: 2, t: 'EDITOR' },
+        { v: 3, t: 'LIDER' },
+        { v: 4, t: 'GESTAO' },
+        { v: 5, t: 'ADM' }
+    ];
+    selectEl.innerHTML = '';
+    levels.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.v;
+        opt.textContent = `${l.v} - ${l.t}`;
+        selectEl.appendChild(opt);
+    });
+}
+
+function fillUserSelect(selectEl, usersList, includeEmpty) {
+    if (!selectEl) return;
+    selectEl.innerHTML = '';
+    if (includeEmpty) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Sem responsavel';
+        selectEl.appendChild(opt);
+    }
+    usersList.forEach(u => {
+        const id = u?.ZFU_ID ?? u?.id ?? '';
+        const nome = u?.ZFU_NOME ?? u?.nome ?? '';
+        const email = u?.ZFU_EMAIL ?? u?.email ?? '';
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = email ? `${nome} (${email})` : nome;
+        selectEl.appendChild(opt);
+    });
+}
+
+function setSelectValue(selectEl, value) {
+    if (!selectEl) return;
+    const val = value === null || value === undefined ? '' : String(value);
+    selectEl.value = val;
+}
+
+async function loadAdminData() {
     try {
-        const response = await fetch('/upload', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await response.json();
-        document.getElementById('loadingCobli').classList.add('hidden');
-        if (data.success) {
-            mostrarResultadosCobli(data);
-        } else {
-            alert(`Erro: ${data.error}`);
+        const [setoresData, usersData] = await Promise.all([
+            apiGet('/api/setores'),
+            apiGet('/api/users')
+        ]);
+        adminState.setores = Array.isArray(setoresData) ? setoresData : [];
+        adminState.users = Array.isArray(usersData) ? usersData : [];
+        renderAdminSetores();
+        renderAdminUsers();
+        fillUserSelect(document.getElementById('adminIndicadorResponsavel'), adminState.users, true);
+        fillUserSelect(document.getElementById('adminIndicadorResponsavelEdit'), adminState.users, true);
+
+        const setorCreateSelect = document.getElementById('adminIndicadorSetor');
+        if (setorCreateSelect) {
+            setorCreateSelect.onchange = async () => {
+                const nextId = setorCreateSelect.value;
+                if (nextId) await refreshIndicadorCodigoForSetor(nextId);
+            };
         }
-    } catch (error) {
-        document.getElementById('loadingCobli').classList.add('hidden');
-        alert(`Erro: ${error.message}`);
+
+        const setorSelect = document.getElementById('adminIndicadorSetorEdit');
+        if (setorSelect) {
+            setorSelect.onchange = () => {
+                const nextId = setorSelect.value;
+                if (nextId) loadAdminIndicadores(nextId);
+            };
+        }
+
+        const defaultSetorId = getSetorIdValue(adminState.setores[0]);
+        if (defaultSetorId) {
+            setSelectValue(document.getElementById('adminIndicadorSetorEdit'), defaultSetorId);
+            setSelectValue(document.getElementById('adminIndicadorSetor'), defaultSetorId);
+            await loadAdminIndicadores(defaultSetorId);
+            await refreshIndicadorCodigoForSetor(defaultSetorId);
+        }
+    } catch (err) {
+        alert(`Erro ao carregar admin: ${err.message}`);
     }
 }
 
-function mostrarResultadosCobli(data) {
-    document.getElementById('cobliResults').classList.remove('hidden');
-    const totalToneladas = data.analise_toneladas.reduce((sum, item) => sum + item.Total_Toneladas, 0);
-    document.getElementById('totalViagens').textContent = data.total_viagens;
-    document.getElementById('totalMotoristas').textContent = data.analise_toneladas.length;
-    document.getElementById('totalToneladas').textContent = `${totalToneladas.toFixed(2)} TN`;
-    preencherTabelaToneladas(data.analise_toneladas);
-    preencherTabelaCarros(data.carros_por_motorista);
-    preencherTabelaDetalhes(data.viagens_detalhes);
-    renderizarGraficos(data.graficos);
+function renderAdminSetores() {
+    fillSetorSelect(document.getElementById('adminUserSetor'), adminState.setores, true);
+    fillSetorSelect(document.getElementById('adminUserSetorEdit'), adminState.setores, true);
+    fillSetorSelect(document.getElementById('adminIndicadorSetor'), adminState.setores, false);
+    fillSetorSelect(document.getElementById('adminIndicadorSetorEdit'), adminState.setores, false);
+    fillNivelSelect(document.getElementById('adminUserNivel'));
+    fillNivelSelect(document.getElementById('adminUserNivelEdit'));
+    renderAdminSetoresTable();
 }
 
-function preencherTabelaToneladas(dados) {
-    const tbody = document.getElementById('tabelaToneladas');
+function renderAdminSetoresTable() {
+    const tbody = document.getElementById('adminSetoresBody');
+    if (!tbody) return;
     tbody.innerHTML = '';
-    dados.forEach(item => {
-        tbody.innerHTML += `<tr><td>${item.Motorista}</td><td>${item.Total_Viagens}</td><td>${item.Total_Toneladas.toFixed(2)} TN</td></tr>`;
+
+    adminState.setores.forEach(s => {
+        const id = getSetorIdValue(s);
+        const nome = getSetorNomeValue(s);
+        const ativo = s?.ZSE_ATIVO ?? s?.ativo ?? 0;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${id ?? ''}</td>
+            <td>${nome}</td>
+            <td>${ativo ? 'Sim' : 'Nao'}</td>
+            <td><button class="btn btn-save admin-btn-row" data-setor-id="${id}">Selecionar</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('button[data-setor-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-setor-id');
+            selectAdminSetor(id);
+        });
     });
 }
 
-function preencherTabelaCarros(dados) {
-    const tbody = document.getElementById('tabelaCarros');
+function selectAdminSetor(setorId) {
+    const sid = Number(setorId);
+    const setor = adminState.setores.find(s => Number(getSetorIdValue(s)) === sid);
+    if (!setor) return;
+    document.getElementById('adminSetorId').value = getSetorIdValue(setor) ?? '';
+    document.getElementById('adminSetorNomeEdit').value = getSetorNomeValue(setor) ?? '';
+    const ativo = setor?.ZSE_ATIVO ?? setor?.ativo ?? 0;
+    document.getElementById('adminSetorAtivoEdit').checked = !!ativo;
+}
+
+function renderAdminUsers() {
+    const tbody = document.getElementById('adminUsersBody');
+    if (!tbody) return;
     tbody.innerHTML = '';
-    dados.forEach(item => {
-        tbody.innerHTML += `<tr><td>${item.Motorista}</td><td>${item.Carros_Utilizados}</td><td>${item.Total_Viagens}</td></tr>`;
+
+    adminState.users.forEach(u => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${u.ZFU_NOME ?? ''}</td>
+            <td>${u.ZFU_EMAIL ?? ''}</td>
+            <td>${u.ZFU_NIVEL ?? ''}</td>
+            <td>
+                <button class="btn btn-save admin-btn-row" data-user-id="${u.ZFU_ID}" data-user-action="perm">Editar permissao</button>
+                <button class="btn btn-save admin-btn-row" data-user-id="${u.ZFU_ID}" data-user-action="edit">Alterar cadastro</button>
+                <button class="btn btn-send admin-btn-row" data-user-id="${u.ZFU_ID}" data-user-action="block">Bloquear</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('button[data-user-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-user-id');
+            const action = btn.getAttribute('data-user-action');
+            if (action === 'block') {
+                adminBlockUser(id);
+                return;
+            }
+            selectAdminUser(id);
+            showUsersSection('editUser');
+        });
     });
 }
 
-function preencherTabelaDetalhes(dados) {
-    const tbody = document.getElementById('tabelaDetalhes');
+function selectAdminUser(userId) {
+    const uid = Number(userId);
+    const user = adminState.users.find(u => Number(u.ZFU_ID) === uid);
+    if (!user) return;
+    adminState.selectedUserId = uid;
+    document.getElementById('adminUserId').value = user.ZFU_ID ?? '';
+    document.getElementById('adminUserNomeEdit').value = user.ZFU_NOME ?? '';
+    document.getElementById('adminUserEmailEdit').value = user.ZFU_EMAIL ?? '';
+    setSelectValue(document.getElementById('adminUserSetorEdit'), user.ZFU_SETOR_ID);
+    setSelectValue(document.getElementById('adminUserNivelEdit'), user.ZFU_NIVEL);
+    document.getElementById('adminUserAtivoEdit').checked = !!user.ZFU_ATIVO;
+}
+
+async function adminCreateUser() {
+    try {
+        const nome = document.getElementById('adminUserNome').value.trim();
+        const email = document.getElementById('adminUserEmail').value.trim();
+        const setorId = document.getElementById('adminUserSetor').value;
+        const nivel = document.getElementById('adminUserNivel').value;
+        const senha = document.getElementById('adminUserSenha').value.trim() || '1234';
+
+        if (!nome || !email) {
+            alert('Informe nome e email');
+            return;
+        }
+
+        await apiPost('/api/users', {
+            nome,
+            email,
+            senha,
+            setor_id: setorId || null,
+            nivel: Number(nivel || 1)
+        });
+        await loadAdminData();
+        document.getElementById('adminUserNome').value = '';
+        document.getElementById('adminUserEmail').value = '';
+        document.getElementById('adminUserSenha').value = '';
+        alert('Usuario criado');
+    } catch (err) {
+        alert(`Erro ao criar usuario: ${err.message}`);
+    }
+}
+
+async function adminUpdateUser() {
+    try {
+        const id = document.getElementById('adminUserId').value;
+        if (!id) {
+            alert('Selecione um usuario');
+            return;
+        }
+        const body = {
+            nome: document.getElementById('adminUserNomeEdit').value.trim(),
+            email: document.getElementById('adminUserEmailEdit').value.trim(),
+            setor_id: document.getElementById('adminUserSetorEdit').value || null,
+            nivel: Number(document.getElementById('adminUserNivelEdit').value || 1),
+            ativo: document.getElementById('adminUserAtivoEdit').checked ? 1 : 0
+        };
+        await apiPut(`/api/users/${id}`, body);
+        await loadAdminData();
+        alert('Usuario atualizado');
+    } catch (err) {
+        alert(`Erro ao atualizar usuario: ${err.message}`);
+    }
+}
+
+async function adminResetUserPassword() {
+    try {
+        const id = document.getElementById('adminUserId').value;
+        if (!id) {
+            alert('Selecione um usuario');
+            return;
+        }
+        const senhaRaw = prompt('Nova senha (deixe vazio para 1234):');
+        if (senhaRaw === null) return;
+        const senha = senhaRaw.trim() || '1234';
+        await apiPost(`/api/users/${id}/reset-password`, { senha });
+        alert('Senha redefinida');
+    } catch (err) {
+        alert(`Erro ao resetar senha: ${err.message}`);
+    }
+}
+
+async function adminBlockUser(userId) {
+    try {
+        const id = Number(userId);
+        if (!id) {
+            alert('Usuario invalido');
+            return;
+        }
+        await apiPut(`/api/users/${id}`, { ativo: 0 });
+        await loadAdminData();
+        alert('Usuario bloqueado');
+    } catch (err) {
+        alert(`Erro ao bloquear usuario: ${err.message}`);
+    }
+}
+
+async function loadAdminIndicadores(setorId) {
+    try {
+        const data = await apiGet(`/api/indicadores?setorId=${encodeURIComponent(setorId)}`);
+        adminState.indicadores = Array.isArray(data) ? data : [];
+        adminIndicadoresCache[String(setorId)] = adminState.indicadores;
+        renderAdminIndicadores();
+    } catch (err) {
+        alert(`Erro ao carregar indicadores: ${err.message}`);
+    }
+}
+
+async function adminCreateSetor() {
+    try {
+        const nome = document.getElementById('adminSetorNome').value.trim();
+        if (!nome) {
+            alert('Informe nome do setor');
+            return;
+        }
+        await apiPost('/api/setores', { nome });
+        document.getElementById('adminSetorNome').value = '';
+        await loadAdminData();
+        alert('Setor criado');
+    } catch (err) {
+        alert(`Erro ao criar setor: ${err.message}`);
+    }
+}
+
+async function adminUpdateSetor() {
+    try {
+        const id = document.getElementById('adminSetorId').value;
+        if (!id) {
+            alert('Selecione um setor');
+            return;
+        }
+        const nome = document.getElementById('adminSetorNomeEdit').value.trim();
+        const ativo = document.getElementById('adminSetorAtivoEdit').checked ? 1 : 0;
+        await apiPut(`/api/setores/${id}`, { nome, ativo });
+        await loadAdminData();
+        alert('Setor atualizado');
+    } catch (err) {
+        alert(`Erro ao atualizar setor: ${err.message}`);
+    }
+}
+
+async function adminDisableSetor() {
+    try {
+        const id = document.getElementById('adminSetorId').value;
+        if (!id) {
+            alert('Selecione um setor');
+            return;
+        }
+        await apiPut(`/api/setores/${id}`, { ativo: 0 });
+        await loadAdminData();
+        alert('Setor inativado');
+    } catch (err) {
+        alert(`Erro ao inativar setor: ${err.message}`);
+    }
+}
+
+async function refreshIndicadorCodigoForSetor(setorId) {
+    if (!setorId) return;
+    const key = String(setorId);
+    let items = adminIndicadoresCache[key];
+    if (!items) {
+        try {
+            const data = await apiGet(`/api/indicadores?setorId=${encodeURIComponent(setorId)}`);
+            items = Array.isArray(data) ? data : [];
+            adminIndicadoresCache[key] = items;
+        } catch (err) {
+            alert(`Erro ao carregar indicadores para codigo: ${err.message}`);
+            return;
+        }
+    }
+    setIndicadorCodigoInput(getNextIndicadorCodigo(items));
+}
+
+function renderAdminIndicadores() {
+    const tbody = document.getElementById('adminIndicadoresBody');
+    if (!tbody) return;
     tbody.innerHTML = '';
-    dados.forEach(item => {
-        tbody.innerHTML += `<tr><td>${item['Motorista associado']}</td><td>${item.Placa}</td><td>${item.Data}</td><td>${item['Nome do local']}</td></tr>`;
+
+    adminState.indicadores.forEach(i => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${i.ZIN_ID ?? ''}</td>
+            <td>${i.ZIN_CODIGO ?? ''}</td>
+            <td>${i.ZIN_NOME ?? ''}</td>
+            <td>${i.ZIN_TIPO ?? ''}</td>
+            <td>${i.ZIN_UNIDADE ?? ''}</td>
+            <td>${i.ZIN_META ?? ''}</td>
+            <td>${i.ZIN_RESPONSAVEL_ID ?? ''}</td>
+            <td>${i.ZIN_ATIVO ? 'Sim' : 'Nao'}</td>
+            <td><button class="btn btn-save admin-btn-row" data-ind-id="${i.ZIN_ID}">Selecionar</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('button[data-ind-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-ind-id');
+            selectAdminIndicador(id);
+        });
     });
 }
 
-function renderizarGraficos(graficos) {
-    Plotly.newPlot('grafico1', graficos.grafico1.data, graficos.grafico1.layout);
-    Plotly.newPlot('grafico2', graficos.grafico2.data, graficos.grafico2.layout);
-    Plotly.newPlot('grafico3', graficos.grafico3.data, graficos.grafico3.layout);
-    Plotly.newPlot('grafico4', graficos.grafico4.data, graficos.grafico4.layout);
+function selectAdminIndicador(indId) {
+    const iid = Number(indId);
+    const indicador = adminState.indicadores.find(i => Number(i.ZIN_ID) === iid);
+    if (!indicador) return;
+    adminState.selectedIndicadorId = iid;
+    document.getElementById('adminIndicadorId').value = indicador.ZIN_ID ?? '';
+    document.getElementById('adminIndicadorNomeEdit').value = indicador.ZIN_NOME ?? '';
+    document.getElementById('adminIndicadorTipoEdit').value = indicador.ZIN_TIPO ?? '';
+    document.getElementById('adminIndicadorUnidadeEdit').value = indicador.ZIN_UNIDADE ?? '';
+    document.getElementById('adminIndicadorMetaEdit').value = indicador.ZIN_META ?? '';
+    setSelectValue(document.getElementById('adminIndicadorResponsavelEdit'), indicador.ZIN_RESPONSAVEL_ID);
+    document.getElementById('adminIndicadorAtivoEdit').checked = !!indicador.ZIN_ATIVO;
 }
 
-function showCobliTab(tabName) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-    event.target.classList.add('active');
-    document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+async function adminCreateIndicador() {
+    try {
+        const setorId = document.getElementById('adminIndicadorSetor').value;
+        const codigo = document.getElementById('adminIndicadorCodigo').value.trim();
+        const nome = document.getElementById('adminIndicadorNome').value.trim();
+        const tipo = document.getElementById('adminIndicadorTipo').value.trim() || null;
+        const unidade = document.getElementById('adminIndicadorUnidade').value.trim() || null;
+        const metaVal = document.getElementById('adminIndicadorMeta').value;
+        const meta = metaVal === '' ? null : Number(metaVal);
+        const responsavelRaw = document.getElementById('adminIndicadorResponsavel').value;
+        const responsavel_id = responsavelRaw ? Number(responsavelRaw) : null;
+
+        if (!setorId || !codigo || !nome) {
+            alert('Informe setor, codigo e nome');
+            return;
+        }
+
+        await apiPost('/api/indicadores', {
+            setor_id: Number(setorId),
+            codigo,
+            nome,
+            tipo,
+            unidade,
+            meta,
+            responsavel_id
+        });
+
+        await loadAdminIndicadores(setorId);
+        document.getElementById('adminIndicadorCodigo').value = '';
+        document.getElementById('adminIndicadorNome').value = '';
+        document.getElementById('adminIndicadorTipo').value = '';
+        document.getElementById('adminIndicadorUnidade').value = '';
+        document.getElementById('adminIndicadorMeta').value = '';
+        setSelectValue(document.getElementById('adminIndicadorResponsavel'), '');
+        alert('Indicador criado');
+    } catch (err) {
+        alert(`Erro ao criar indicador: ${err.message}`);
+    }
 }
 
-// ===== INICIALIZAÇÃO =====
+async function adminUpdateIndicador() {
+    try {
+        const id = document.getElementById('adminIndicadorId').value;
+        if (!id) {
+            alert('Selecione um indicador');
+            return;
+        }
+        const body = {
+            nome: document.getElementById('adminIndicadorNomeEdit').value.trim(),
+            tipo: document.getElementById('adminIndicadorTipoEdit').value.trim() || null,
+            unidade: document.getElementById('adminIndicadorUnidadeEdit').value.trim() || null,
+            meta: (() => {
+                const v = document.getElementById('adminIndicadorMetaEdit').value;
+                return v === '' ? null : Number(v);
+            })(),
+            responsavel_id: (() => {
+                const v = document.getElementById('adminIndicadorResponsavelEdit').value;
+                return v === '' ? null : Number(v);
+            })(),
+            ativo: document.getElementById('adminIndicadorAtivoEdit').checked ? 1 : 0
+        };
+        await apiPut(`/api/indicadores/${id}`, body);
+        const setorId = document.getElementById('adminIndicadorSetorEdit').value;
+        if (setorId) await loadAdminIndicadores(setorId);
+        alert('Indicador atualizado');
+    } catch (err) {
+        alert(`Erro ao atualizar indicador: ${err.message}`);
+    }
+}
+
+// ===== INICIALIZACAO =====
 document.addEventListener('DOMContentLoaded', function() {
     showLoginScreen();
-    const fileInput = document.getElementById('excelFile');
-    if (fileInput) {
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                selectedFile = file;
-                document.getElementById('fileName').textContent = `Arquivo: ${file.name}`;
-                document.getElementById('fileName').classList.remove('hidden');
-                document.getElementById('uploadBtn').classList.remove('hidden');
-            }
-        });
-    }
 });
