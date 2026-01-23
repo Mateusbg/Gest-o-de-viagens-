@@ -1,57 +1,115 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <!-- =========================================================
+         META / SEO BÁSICO
+         ========================================================= -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Sistema de Indicadores</title>
-    <link rel="stylesheet" href="/static/styles.css">
-<script src="/static/script.js" defer></script>
-</head>
-<body>
 
-    <!-- TELA DE LOGIN -->
+    <!-- Título da aplicação (aba do navegador) -->
+    <title>Dashboard - Sistema de Indicadores</title>
+
+    <!-- =========================================================
+         CSS / JS
+         - CSS do layout (styles.css)
+         - JS principal (script.js) carregado com defer
+           para garantir que o DOM já exista antes do script rodar
+         ========================================================= -->
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/script.js" defer></script>
+</head>
+
+<body>
+    <!-- =========================================================
+         1) TELA DE LOGIN
+         - Visível por padrão
+         - Após login, o JS deve ocultar (#loginScreen) e mostrar (#sectorsScreen)
+         ========================================================= -->
     <div id="loginScreen" class="login-container">
         <div class="login-box">
+
+            <!-- Cabeçalho do login -->
             <div class="login-header">
                 <h1>Brasitalia</h1>
                 <p>Sistema de Indicadores</p>
             </div>
 
+            <!-- Campo: Email/Usuário -->
             <div class="form-group">
                 <label>User</label>
-                <input type="email" id="emailInput" placeholder="email">
+                <input
+                    type="email"
+                    id="emailInput"
+                    placeholder="email"
+                    autocomplete="username"
+                >
             </div>
 
+            <!-- Campo: Senha + botão de visualização -->
             <div class="form-group">
                 <label>Senha</label>
+
                 <div class="password-toggle">
-                    <input type="password" id="senhaInput" placeholder="senha">
-                    <button onclick="togglePassword()" type="button">👁️</button>
+                    <input
+                        type="password"
+                        id="senhaInput"
+                        placeholder="senha"
+                        autocomplete="current-password"
+                    >
+
+                    <!-- Botão olho: chama função JS togglePassword() -->
+                    <button type="button" onclick="togglePassword()">👁️</button>
                 </div>
             </div>
 
+            <!-- Ação: Login -->
             <button class="login-btn" onclick="handleLogin()">Entrar</button>
         </div>
     </div>
 
-    <!-- TELA DE SETORES -->
+
+    <!-- =========================================================
+         2) TELA DE SETORES
+         - Inicia oculta (hidden)
+         - Exibe lista de setores (JS popula #sectorsGrid)
+         - Exibe histórico de envios (opcional, #historySection)
+         ========================================================= -->
     <div id="sectorsScreen" class="hidden">
+        <!-- Header padrão do sistema (bem-vindo + botões) -->
         <header>
             <div class="header-container">
+                <!-- Saudação e instrução -->
                 <div class="header-content">
-                    <h1>Bem-vindo, <span id="userNameDisplay">Usuário</span>!</h1>
+                    <h1>
+                        Bem-vindo, <span id="userNameDisplay">Usuário</span>!
+                    </h1>
                     <p>Selecione um setor para preencher indicadores</p>
                 </div>
-                <button id="adminBtn" class="admin-btn hidden" onclick="showAdminScreen()">Admin</button>
+
+                <!-- Botão Admin: fica hidden por padrão e o JS decide mostrar -->
+                <button
+                    id="adminBtn"
+                    class="admin-btn hidden"
+                    onclick="showAdminScreen()"
+                >
+                    Admin
+                </button>
+
+                <!-- Logout -->
                 <button class="logout-btn" onclick="handleLogout()">🚪 Sair</button>
             </div>
         </header>
 
+        <!-- Conteúdo principal da tela de setores -->
         <div class="sectors-container">
-<div class="sectors-grid" id="sectorsGrid"></div>
+            <!-- Grid onde os botões de setores serão gerados dinamicamente -->
+            <div class="sectors-grid" id="sectorsGrid"></div>
 
+            <!-- Histórico de envios (opcional / controlado pelo JS) -->
             <div class="history-section hidden" id="historySection">
                 <h2>Histórico de Envios</h2>
+
                 <table class="history-table">
                     <thead>
                         <tr>
@@ -61,6 +119,8 @@
                             <th>Status</th>
                         </tr>
                     </thead>
+
+                    <!-- Corpo preenchido pelo JS -->
                     <tbody id="historyBody"></tbody>
                 </table>
             </div>
@@ -68,121 +128,169 @@
     </div>
 
 
-
-    
-
-    <!-- TELA ADMIN -->
+    <!-- =========================================================
+         3) TELA ADMIN
+         - Inicia oculta
+         - Possui navegação interna: Usuários / Indicadores
+         - Usuários tem subnav: criar usuário, setor, editar setor, lista
+         ========================================================= -->
     <div id="adminScreen" class="hidden">
         <header>
             <div class="header-container">
+                <!-- Área esquerda: botão voltar + título -->
                 <div class="indicators-header">
                     <button class="back-btn" onclick="backToSectorsFromAdmin()"><-</button>
+
                     <div class="header-content">
-                        <h1>Administracao</h1>
+                        <h1>Administração</h1>
                         <p>Usuarios e indicadores</p>
                     </div>
                 </div>
+
+                <!-- Logout -->
                 <button class="logout-btn" onclick="handleLogout()">Sair</button>
             </div>
         </header>
 
+        <!-- Conteúdo admin -->
         <div class="admin-container">
+
+            <!-- Navegação principal admin -->
             <div class="admin-nav">
-                <button class="btn btn-save admin-tab" onclick="showAdminSection('users')">Usuarios</button>
-                <button class="btn btn-send admin-tab" onclick="showAdminSection('indicators')">Indicadores</button>
+                <button class="btn btn-save admin-tab" onclick="showAdminSection('users')">
+                    Usuarios
+                </button>
+                <button class="btn btn-send admin-tab" onclick="showAdminSection('indicators')">
+                    Indicadores
+                </button>
             </div>
 
+
+            <!-- =========================
+                 ADMIN: SEÇÃO USUÁRIOS
+                 ========================= -->
             <div class="admin-section" id="adminUsersSection">
                 <h2>Usuarios</h2>
+
+                <!-- Subnavegação Usuários -->
                 <div class="admin-subnav">
                     <button class="btn btn-save admin-tab" onclick="showUsersSection('createUser')">Criar usuario</button>
                     <button class="btn btn-save admin-tab" onclick="showUsersSection('createSetor')">Criar setor</button>
                     <button class="btn btn-send admin-tab" onclick="showUsersSection('editSetor')">Editar setor</button>
                     <button class="btn btn-save admin-tab" onclick="showUsersSection('listUsers')">Lista usuarios</button>
                 </div>
+
+                <!-- Cards Usuários/Setores -->
                 <div class="admin-grid">
+
+                    <!-- Card: Criar usuário -->
                     <div class="admin-card" id="adminCreateUserCard">
                         <h3>Criar usuario</h3>
+
                         <div class="form-group">
                             <label>Nome</label>
-                            <input id="adminUserNome" type="text" placeholder="Nome">
+                            <input id="adminUserNome" type="text" placeholder="Nome" autocomplete="name">
                         </div>
+
                         <div class="form-group">
                             <label>Email</label>
-                            <input id="adminUserEmail" type="email" placeholder="email@empresa.com">
+                            <input id="adminUserEmail" type="email" placeholder="email@empresa.com" autocomplete="email">
                         </div>
+
                         <div class="form-group">
                             <label>Setor</label>
                             <select id="adminUserSetor"></select>
                         </div>
+
                         <div class="form-group">
                             <label>Nivel</label>
                             <select id="adminUserNivel"></select>
                         </div>
+
                         <div class="form-group">
                             <label>Senha</label>
-                            <input id="adminUserSenha" type="password" placeholder="1234">
+                            <input id="adminUserSenha" type="password" placeholder="1234" autocomplete="new-password">
                         </div>
+
                         <button class="btn btn-save" onclick="adminCreateUser()">Criar usuario</button>
                     </div>
 
+
+                    <!-- Card: Editar usuário (hidden por padrão) -->
                     <div class="admin-card hidden" id="adminEditUserCard">
                         <h3>Editar usuario</h3>
+
                         <div class="form-group">
                             <label>ID</label>
                             <input id="adminUserId" type="text" readonly>
                         </div>
+
                         <div class="form-group">
                             <label>Nome</label>
                             <input id="adminUserNomeEdit" type="text">
                         </div>
+
                         <div class="form-group">
                             <label>Email</label>
                             <input id="adminUserEmailEdit" type="email">
                         </div>
+
                         <div class="form-group">
                             <label>Setor</label>
                             <select id="adminUserSetorEdit"></select>
                         </div>
+
                         <div class="form-group">
                             <label>Nivel</label>
                             <select id="adminUserNivelEdit"></select>
                         </div>
+
                         <div class="form-group">
                             <label>
                                 <input id="adminUserAtivoEdit" type="checkbox"> Ativo
                             </label>
                         </div>
+
                         <div class="admin-actions">
                             <button class="btn btn-save" onclick="adminUpdateUser()">Salvar</button>
                             <button class="btn btn-send" onclick="adminResetUserPassword()">Resetar senha</button>
                         </div>
                     </div>
 
+
+                    <!-- Card: Criar setor (hidden por padrão) -->
                     <div class="admin-card hidden" id="adminCreateSetorCard">
                         <h3>Criar setor</h3>
+
                         <div class="form-group">
                             <label>Nome do setor</label>
                             <input id="adminSetorNome" type="text" placeholder="Nome do setor">
                         </div>
+
                         <button class="btn btn-save" onclick="adminCreateSetor()">Criar setor</button>
                     </div>
 
+
+                    <!-- Card: Editar setor (hidden por padrão) -->
                     <div class="admin-card hidden" id="adminEditSetorCard">
                         <h3>Editar setor</h3>
+
                         <div class="form-group">
                             <label>ID</label>
                             <input id="adminSetorId" type="text" readonly>
                         </div>
+
                         <div class="form-group">
                             <label>Nome</label>
                             <input id="adminSetorNomeEdit" type="text">
                         </div>
+
                         <div class="form-group">
                             <label>
                                 <input id="adminSetorAtivoEdit" type="checkbox"> Ativo
                             </label>
                         </div>
+
                         <div class="admin-actions">
                             <button class="btn btn-save" onclick="adminUpdateSetor()">Salvar</button>
                             <button class="btn btn-send" onclick="adminDisableSetor()">Inativar</button>
@@ -190,6 +298,8 @@
                     </div>
                 </div>
 
+
+                <!-- Tabela: Setores (hidden por padrão) -->
                 <div class="admin-table-wrap hidden" id="adminSetoresTableWrap">
                     <table class="history-table admin-table">
                         <thead>
@@ -204,6 +314,8 @@
                     </table>
                 </div>
 
+
+                <!-- Tabela: Usuários (hidden por padrão) -->
                 <div class="admin-table-wrap hidden" id="adminUsersTableWrap">
                     <table class="history-table admin-table">
                         <thead>
@@ -219,81 +331,106 @@
                 </div>
             </div>
 
+
+            <!-- =========================
+                 ADMIN: SEÇÃO INDICADORES
+                 ========================= -->
             <div class="admin-section hidden" id="adminIndicadoresSection">
                 <h2>Indicadores</h2>
+
                 <div class="admin-grid">
+                    <!-- Card: Criar indicador -->
                     <div class="admin-card">
                         <h3>Criar indicador</h3>
+
                         <div class="form-group">
                             <label>Setor</label>
                             <select id="adminIndicadorSetor"></select>
                         </div>
+
                         <div class="form-group">
                             <label>Codigo</label>
                             <input id="adminIndicadorCodigo" type="text" placeholder="COD01">
                         </div>
+
                         <div class="form-group">
                             <label>Nome</label>
                             <input id="adminIndicadorNome" type="text" placeholder="Nome do indicador">
                         </div>
+
                         <div class="form-group">
                             <label>Tipo</label>
                             <input id="adminIndicadorTipo" type="text" placeholder="number/date">
                         </div>
+
                         <div class="form-group">
                             <label>Unidade</label>
                             <input id="adminIndicadorUnidade" type="text" placeholder="unidade">
                         </div>
+
                         <div class="form-group">
                             <label>Meta</label>
                             <input id="adminIndicadorMeta" type="number" step="any" placeholder="0">
                         </div>
+
                         <div class="form-group">
-                            <label>Responsavel</label>
+                            <label>Responsavel por preenhcer</label>
                             <select id="adminIndicadorResponsavel"></select>
                         </div>
+
                         <button class="btn btn-save" onclick="adminCreateIndicador()">Criar indicador</button>
                     </div>
 
+                    <!-- Card: Editar indicador -->
                     <div class="admin-card">
                         <h3>Editar indicador</h3>
+
                         <div class="form-group">
                             <label>ID</label>
                             <input id="adminIndicadorId" type="text" readonly>
                         </div>
+
                         <div class="form-group">
                             <label>Setor (lista)</label>
                             <select id="adminIndicadorSetorEdit"></select>
                         </div>
+
                         <div class="form-group">
                             <label>Nome</label>
                             <input id="adminIndicadorNomeEdit" type="text">
                         </div>
+
                         <div class="form-group">
                             <label>Tipo</label>
                             <input id="adminIndicadorTipoEdit" type="text">
                         </div>
+
                         <div class="form-group">
                             <label>Unidade</label>
                             <input id="adminIndicadorUnidadeEdit" type="text">
                         </div>
+
                         <div class="form-group">
                             <label>Meta</label>
                             <input id="adminIndicadorMetaEdit" type="number" step="any">
                         </div>
+
                         <div class="form-group">
                             <label>Responsavel</label>
                             <select id="adminIndicadorResponsavelEdit"></select>
                         </div>
+
                         <div class="form-group">
                             <label>
                                 <input id="adminIndicadorAtivoEdit" type="checkbox"> Ativo
                             </label>
                         </div>
+
                         <button class="btn btn-save" onclick="adminUpdateIndicador()">Salvar</button>
                     </div>
                 </div>
 
+                <!-- Tabela: lista indicadores -->
                 <div class="admin-table-wrap">
                     <table class="history-table admin-table">
                         <thead>
@@ -315,29 +452,44 @@
             </div>
         </div>
     </div>
-<!-- TELA DE INDICADORES -->
+
+
+    <!-- =========================================================
+         4) TELA DE INDICADORES (POR SETOR)
+         - Inicia oculta
+         - JS define o título do setor (#sectorTitle)
+         - JS gera os campos dentro de #indicatorsForm
+         ========================================================= -->
     <div id="indicatorsScreen" class="hidden">
         <header>
             <div class="header-container">
                 <div class="indicators-header">
+                    <!-- Voltar para setores -->
                     <button class="back-btn" onclick="backToSectors()">←</button>
+
+                    <!-- Título e subtítulo -->
                     <div class="header-content">
                         <h1 id="sectorTitle">Setor</h1>
                         <p>Preencha os indicadores abaixo</p>
                     </div>
                 </div>
+
+                <!-- Logout -->
                 <button class="logout-btn" onclick="handleLogout()">🚪 Sair</button>
             </div>
         </header>
 
         <div class="indicators-content">
+            <!-- Form gerado dinamicamente pelo JS -->
             <div class="indicators-form" id="indicatorsForm"></div>
 
+            <!-- Ações principais -->
             <div class="action-buttons">
                 <button class="btn btn-save" id="saveBtn" onclick="handleSave()">💾 Salvar</button>
                 <button class="btn btn-send" id="sendBtn" onclick="handleSendDB()">📤 Enviar para DB</button>
             </div>
 
+            <!-- Últimos registros (opcional / controlado pelo JS) -->
             <div class="recent-records hidden" id="recentRecords">
                 <h2>Últimos Registros</h2>
                 <div id="recordsList"></div>

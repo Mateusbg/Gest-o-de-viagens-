@@ -1,10 +1,17 @@
+/* =========================================================
+   RESET GLOBAL
+   Remove margens/paddings padrão e padroniza box-model
+   ========================================================= */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-
+/* =========================================================
+   CONFIGURAÇÕES GERAIS DO BODY
+   Fonte padrão + fundo gradiente global
+   ========================================================= */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
@@ -12,7 +19,11 @@ body {
 }
 
 
-/* ===== TELA DE LOGIN ===== */
+/* =========================================================
+   ===== TELA DE LOGIN =====
+   ========================================================= */
+
+/* Container central da tela de login */
 .login-container {
     min-height: 100vh;
     display: flex;
@@ -22,7 +33,7 @@ body {
     background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
 }
 
-
+/* Caixa branca de login */
 .login-box {
     background: white;
     border-radius: 12px;
@@ -32,31 +43,31 @@ body {
     max-width: 400px;
 }
 
-
+/* Cabeçalho do login */
 .login-header {
     text-align: center;
     margin-bottom: 30px;
 }
 
-
+/* Título do login */
 .login-header h1 {
     font-size: 32px;
     color: #1f2937;
     margin-bottom: 10px;
 }
 
-
+/* Subtítulo do login */
 .login-header p {
     color: #6b7280;
     font-size: 14px;
 }
 
-
+/* Grupo de campo (label + input) */
 .form-group {
     margin-bottom: 20px;
 }
 
-
+/* Label dos inputs */
 .form-group label {
     display: block;
     color: #374151;
@@ -65,7 +76,7 @@ body {
     font-size: 14px;
 }
 
-
+/* Input padrão */
 .form-group input {
     width: 100%;
     padding: 12px 16px;
@@ -75,26 +86,26 @@ body {
     transition: all 0.3s;
 }
 
-
+/* Efeito foco input */
 .form-group input:focus {
     outline: none;
     border-color: #2563eb;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-
+/* Texto auxiliar abaixo do input */
 .form-hint {
     font-size: 12px;
     color: #9ca3af;
     margin-top: 6px;
 }
 
-
+/* Wrapper para input de senha com botão olho */
 .password-toggle {
     position: relative;
 }
 
-
+/* Botão mostrar/ocultar senha */
 .password-toggle button {
     position: absolute;
     right: 12px;
@@ -108,7 +119,7 @@ body {
     font-size: 16px;
 }
 
-
+/* Botão login */
 .login-btn {
     width: 100%;
     padding: 12px;
@@ -122,12 +133,12 @@ body {
     transition: all 0.3s;
 }
 
-
+/* Hover botão login */
 .login-btn:hover {
     background: #1d4ed8;
 }
 
-
+/* Box informativo no login */
 .login-info {
     margin-top: 24px;
     padding: 16px;
@@ -135,7 +146,7 @@ body {
     border-radius: 8px;
 }
 
-
+/* Texto dentro do box info */
 .login-info p {
     font-size: 12px;
     color: #374151;
@@ -143,11 +154,16 @@ body {
 }
 
 
-/* ===== HEADER ===== */
+/* =========================================================
+   ===== HEADER / NAVBAR =====
+   ========================================================= */
+
+/* Barra superior branca */
 .navbar {
     background-color: white;
-
 }
+
+/* Container interno navbar */
 .navbar-container {
     max-width: 1280px;
     margin: 0 auto;
@@ -158,12 +174,14 @@ body {
     height: 64px;
 }
 
+/* Header principal azul */
 header {
     background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     padding: 24px 0;
 }
 
+/* Container do header */
 .header-container {
     max-width: 1280px;
     margin: 0 auto;
@@ -175,20 +193,20 @@ header {
     gap: 20px;
 }
 
-
+/* Título header */
 .header-content h1 {
     font-size: 28px;
     color: white;
     margin-bottom: 4px;
 }
 
-
+/* Subtítulo header */
 .header-content p {
     color: #dbeafe;
     font-size: 14px;
 }
 
-
+/* Botão logout */
 .logout-btn {
     background: #ef4444;
     color: white;
@@ -204,20 +222,23 @@ header {
     transition: all 0.3s;
 }
 
-
+/* Hover logout */
 .logout-btn:hover {
     background: #dc2626;
 }
 
 
-/* ===== TELA DE SETORES ===== */
+/* =========================================================
+   ===== TELA DE SETORES =====
+   ========================================================= */
+
 .sectors-container {
     max-width: 1280px;
     margin: 0 auto;
     padding: 32px 24px;
 }
 
-
+/* Grid responsivo de setores */
 .sectors-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -225,7 +246,7 @@ header {
     margin-bottom: 32px;
 }
 
-
+/* Botão setor */
 .sector-btn {
     padding: 32px;
     border: none;
@@ -238,46 +259,35 @@ header {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-
+/* Nome do setor */
 .sector-btn h2 {
     font-size: 24px;
     margin-bottom: 8px;
 }
 
-
+/* Descrição do setor */
 .sector-btn p {
     font-size: 13px;
     opacity: 0.9;
 }
 
-
+/* Hover setor */
 .sector-btn:hover {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
     transform: scale(1.05);
 }
 
-
-.sector-blue {
-    background: #3b82f6;
-}
-
-
-.sector-green {
-    background: #10b981;
-}
+/* Cores por setor */
+.sector-blue { background: #3b82f6; }
+.sector-green { background: #10b981; }
+.sector-purple { background: #a855f7; }
+.sector-red { background: #ef4444; }
 
 
-.sector-purple {
-    background: #a855f7;
-}
+/* =========================================================
+   ===== HISTÓRICO DE INDICADORES =====
+   ========================================================= */
 
-
-.sector-red {
-    background: #ef4444;
-}
-
-
-/* ===== HISTÓRICO ===== */
 .history-section {
     background: #334155;
     border-radius: 8px;
@@ -285,14 +295,13 @@ header {
     margin-top: 24px;
 }
 
-
 .history-section h2 {
     color: white;
     font-size: 20px;
     margin-bottom: 16px;
 }
 
-
+/* Tabela histórico */
 .history-table {
     width: 100%;
     border-collapse: collapse;
@@ -300,11 +309,10 @@ header {
     font-size: 13px;
 }
 
-
+/* Cabeçalho tabela */
 .history-table thead {
     border-bottom: 1px solid #475569;
 }
-
 
 .history-table th {
     text-align: left;
@@ -313,18 +321,18 @@ header {
     font-weight: 600;
 }
 
-
+/* Linhas */
 .history-table td {
     padding: 12px;
     border-bottom: 1px solid #475569;
 }
 
-
+/* Hover linha */
 .history-table tr:hover {
     background: #1e293b;
 }
 
-
+/* Status badge */
 .status-badge {
     display: inline-block;
     padding: 4px 12px;
@@ -333,27 +341,30 @@ header {
     font-weight: 600;
 }
 
-
+/* Status enviado */
 .status-sent {
     background: #059669;
     color: white;
 }
 
-
+/* Status salvo */
 .status-saved {
     background: #b45309;
     color: white;
 }
 
 
-/* ===== TELA DE INDICADORES ===== */
+/* =========================================================
+   ===== TELA DE INDICADORES =====
+   ========================================================= */
+
 .indicators-header {
     display: flex;
     align-items: center;
     gap: 20px;
 }
 
-
+/* Botão voltar */
 .back-btn {
     background: none;
     border: none;
@@ -368,19 +379,18 @@ header {
     font-size: 20px;
 }
 
-
 .back-btn:hover {
     background: rgba(255, 255, 255, 0.1);
 }
 
-
+/* Conteúdo indicadores */
 .indicators-content {
     max-width: 1024px;
     margin: 0 auto;
     padding: 32px 24px;
 }
 
-
+/* Form indicadores */
 .indicators-form {
     background: #334155;
     border-radius: 8px;
@@ -388,13 +398,12 @@ header {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-
+/* Cada indicador */
 .indicator-item {
     margin-bottom: 32px;
     padding-bottom: 24px;
     border-bottom: 1px solid #475569;
 }
-
 
 .indicator-item:last-child {
     border-bottom: none;
@@ -402,7 +411,7 @@ header {
     padding-bottom: 0;
 }
 
-
+/* Nome indicador */
 .indicator-label {
     color: white;
     font-weight: 600;
@@ -410,14 +419,14 @@ header {
     margin-bottom: 4px;
 }
 
-
+/* Meta, unidade, info */
 .indicator-meta {
     color: #9ca3af;
     font-size: 13px;
     margin-bottom: 12px;
 }
 
-
+/* Input indicador */
 .indicator-input {
     width: 100%;
     padding: 12px 16px;
@@ -429,19 +438,17 @@ header {
     transition: all 0.3s;
 }
 
-
 .indicator-input:focus {
     outline: none;
     border-color: #2563eb;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-
 .indicator-input::placeholder {
     color: #6b7280;
 }
 
-
+/* Botões salvar/enviar */
 .action-buttons {
     display: flex;
     gap: 16px;
@@ -450,7 +457,7 @@ header {
     flex-wrap: wrap;
 }
 
-
+/* Botão genérico */
 .btn {
     border: none;
     font-weight: 600;
@@ -464,29 +471,31 @@ header {
     transition: all 0.3s;
 }
 
-
+/* Salvar */
 .btn-save {
     background: #eab308;
     color: #000;
 }
 
-
 .btn-save:hover {
     background: #d4a40a;
 }
 
-
+/* Enviar */
 .btn-send {
     background: #16a34a;
     color: white;
 }
 
-
 .btn-send:hover {
     background: #15803d;
 }
 
-/* ===== ADMIN ===== */
+
+/* =========================================================
+   ===== ADMIN PAINEL =====
+   ========================================================= */
+
 .admin-btn {
     background: #0ea5e9;
     color: white;
@@ -522,6 +531,7 @@ header {
     margin-bottom: 16px;
 }
 
+/* Grid admin */
 .admin-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -541,6 +551,7 @@ header {
     margin-bottom: 12px;
 }
 
+/* Inputs admin */
 .admin-card .form-group label {
     color: #e2e8f0;
 }
@@ -556,24 +567,15 @@ header {
     font-size: 13px;
 }
 
+/* Ações admin */
 .admin-actions {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
 }
 
-.admin-nav {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-}
-
-.admin-tab {
-    min-width: 160px;
-    justify-content: center;
-}
-
+/* Tabs admin */
+.admin-nav,
 .admin-subnav {
     display: flex;
     gap: 12px;
@@ -581,6 +583,7 @@ header {
     flex-wrap: wrap;
 }
 
+/* Tabela admin */
 .admin-table-wrap {
     background: #111827;
     border-radius: 8px;
@@ -597,7 +600,10 @@ header {
 }
 
 
-/* ===== RECENT RECORDS ===== */
+/* =========================================================
+   ===== REGISTROS RECENTES =====
+   ========================================================= */
+
 .recent-records {
     margin-top: 32px;
     background: #334155;
@@ -605,14 +611,13 @@ header {
     padding: 24px;
 }
 
-
 .recent-records h2 {
     color: white;
     font-size: 18px;
     margin-bottom: 16px;
 }
 
-
+/* Item registro */
 .record-item {
     background: #1e293b;
     padding: 16px;
@@ -623,24 +628,27 @@ header {
     align-items: center;
 }
 
-
+/* Info registro */
 .record-info p {
     color: white;
     font-weight: 600;
     margin-bottom: 4px;
 }
 
-
 .record-info .timestamp {
     color: #9ca3af;
     font-size: 12px;
 }
 
-
+/* Classe utilitária */
 .hidden {
     display: none;
 }
 
+
+/* =========================================================
+   ===== RESPONSIVO MOBILE =====
+   ========================================================= */
 
 @media (max-width: 768px) {
     .header-container {
@@ -648,16 +656,13 @@ header {
         text-align: center;
     }
 
-
     .sectors-grid {
         grid-template-columns: 1fr;
     }
 
-
     .action-buttons {
         flex-direction: column;
     }
-
 
     .btn {
         justify-content: center;
