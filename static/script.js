@@ -1,6 +1,7 @@
 // VARIÁVEIS GLOBAIS
 let currentUser = null;
 
+<<<<<<< HEAD
 function normalizeToken(token) {
     if (!token || typeof token !== 'string') return null;
     const trimmed = token.trim();
@@ -12,6 +13,9 @@ function normalizeToken(token) {
 }
 
 let authToken = normalizeToken(localStorage.getItem('authToken'));
+=======
+let authToken = localStorage.getItem('authToken') || null;
+>>>>>>> 95af3f15e4d54d5aa681c47e91abe2441e459716
 let currentSector = null;
 let registrosDB = [];
 let setoresApi = [];
@@ -138,6 +142,7 @@ async function apiPost(url, body) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+<<<<<<< HEAD
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify(body)
@@ -173,6 +178,9 @@ async function apiPut(url, body) {
         headers: {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+=======
+            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+>>>>>>> 95af3f15e4d54d5aa681c47e91abe2441e459716
         },
         body: JSON.stringify(body)
     });
@@ -252,11 +260,15 @@ async function handleLogin() {
             throw new Error(data?.error || 'Login inválido');
         }
 
+<<<<<<< HEAD
         authToken = normalizeToken(data.token);
         if (!authToken) {
             localStorage.removeItem('authToken');
             throw new Error('Token inválido retornado pelo servidor');
         }
+=======
+        authToken = data.token;
+>>>>>>> 95af3f15e4d54d5aa681c47e91abe2441e459716
         localStorage.setItem('authToken', authToken);
 
         currentUser = {
@@ -269,7 +281,10 @@ async function handleLogin() {
         };
 
         document.getElementById('userNameDisplay').textContent = currentUser.nome;
+<<<<<<< HEAD
         updateAdminButton();
+=======
+>>>>>>> 95af3f15e4d54d5aa681c47e91abe2441e459716
         showSectorsScreen();
 
     } catch (err) {

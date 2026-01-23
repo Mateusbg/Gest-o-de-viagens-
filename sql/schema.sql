@@ -128,6 +128,7 @@ GO
 
 
 -- Usuário ADM inicial é criado automaticamente pelo app.py se não existir (SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD no .env)
+<<<<<<< HEAD
 
 /* ============================================================
    ALTERACOES (banco existente)
@@ -147,3 +148,5 @@ BEGIN
     REFERENCES dbo.ZFU (ZFU_ID);
 END;
 GO
+=======
+>>>>>>> 95af3f15e4d54d5aa681c47e91abe2441e459716
