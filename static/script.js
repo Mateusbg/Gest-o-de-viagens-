@@ -334,8 +334,22 @@ async function apiPut(url, body) {
 function handleUnauthorized() {
     authToken = null;
     localStorage.removeItem('authToken');
-    alert('Sessao expirada. Faça login novamente.');
+    alert('Sessão expirada. Faça login novamente.');
     showLoginScreen();
+}
+
+function setButtonLoading(btn, isLoading, loadingText) {
+    if (!btn) return;
+    if (isLoading) {
+        if (!btn.dataset.originalText) btn.dataset.originalText = btn.innerHTML;
+        btn.innerHTML = loadingText || 'Carregando...';
+        btn.disabled = true;
+        btn.classList.add('btn-loading');
+    } else {
+        if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText;
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+    }
 }
 
 
@@ -480,6 +494,42 @@ function handleLogout() {
     authToken = null;
     localStorage.removeItem('authToken');
     location.reload();
+}
+
+async function tryRestoreSession() {
+    const token = normalizeToken(localStorage.getItem('authToken'));
+    if (!token) {
+        showLoginScreen();
+        return;
+    }
+
+    authToken = token;
+    try {
+        const resp = await fetch('/api/me', {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!resp.ok) throw new Error('Sessão expirada');
+        const data = await resp.json().catch(() => ({}));
+        if (!data?.ok || !data?.user) throw new Error('Sessão expirada');
+
+        currentUser = {
+            id: data.user.id,
+            email: data.user.email,
+            nome: data.user.nome,
+            setor_id: data.user.setor_id,
+            nivel: data.user.nivel,
+            perfil: data.user.perfil
+        };
+
+        document.getElementById('userNameDisplay').textContent = currentUser.nome;
+        showSectorsScreen();
+    } catch (err) {
+        authToken = null;
+        localStorage.removeItem('authToken');
+        showLoginScreen();
+    }
 }
 
 
@@ -848,9 +898,10 @@ function updateIndicatorDate(id, value) {
  * - POST /api/drafts
  * - Permitido para: padrão/lider/gestao (exceto nível 1)
  */
-function handleSave() {
+async function handleSave() {
     const periodo = getPeriodoAtualOuDoFormulario();
     const valores = buildValoresPayload();
+    const saveBtn = document.getElementById('saveBtn');
 
     const body = {
         setorId: currentSector.id,
@@ -862,32 +913,32 @@ function handleSave() {
         valores
     };
 
-    apiPost('/api/drafts', body)
-        .then(() => {
-            registrosDB.unshift({
-                id: Date.now(),
-                usuario: currentUser.nome,
-                setor: currentSector.nome,
-                timestamp: new Date().toLocaleString('pt-BR'),
-                indicadores: currentSector.indicadores,
-                status: 'Rascunho (DB)'
-            });
-            updateHistoryDisplay();
-            alert('Rascunho salvo no banco com sucesso!');
-        })
-        .catch(err => alert(`Erro ao salvar rascunho: ${err.message}`));
+    try {
+        setButtonLoading(saveBtn, true, 'Salvando...');
+        await apiPost('/api/drafts', body);
+        registrosDB.unshift({
+            id: Date.now(),
+            usuario: currentUser.nome,
+            setor: currentSector.nome,
+            timestamp: new Date().toLocaleString('pt-BR'),
+            indicadores: currentSector.indicadores,
+            status: 'Rascunho (DB)'
+        });
+        updateHistoryDisplay();
+        alert('Rascunho salvo no banco com sucesso!');
+    } catch (err) {
+        alert(`Erro ao salvar rascunho: ${err.message}`);
+    } finally {
+        setButtonLoading(saveBtn, false);
+    }
 }
 
-/**
- * Envia definitivo para banco:
- * - POST /api/valores
- * - Permitido apenas para LIDER/GESTAO
- */
-function handleSendDB() {
+async function handleSendDB() {
     const perfil = getUserPerfil(currentUser);
+    const sendBtn = document.getElementById('sendBtn');
 
     if (perfil !== 'LIDER' && perfil !== 'GESTAO') {
-        alert('Apenas LÍDER ou GESTÃO podem enviar valores definitivos para o banco. Use "Salvar" para rascunho.');
+        alert('Apenas LIDER ou GESTAO podem enviar valores definitivos para o banco. Use "Salvar" para rascunho.');
         return;
     }
 
@@ -904,21 +955,25 @@ function handleSendDB() {
         valores
     };
 
-    apiPost('/api/valores', body)
-        .then(() => {
-            registrosDB.unshift({
-                id: Date.now(),
-                usuario: currentUser.nome,
-                setor: currentSector.nome,
-                timestamp: new Date().toLocaleString('pt-BR'),
-                indicadores: currentSector.indicadores,
-                status: 'Enviado para DB'
-            });
-            updateHistoryDisplay();
-            alert('Dados enviados para banco de dados com sucesso!');
-            backToSectors();
-        })
-        .catch(err => alert(`Erro ao enviar para DB: ${err.message}`));
+    try {
+        setButtonLoading(sendBtn, true, 'Enviando...');
+        await apiPost('/api/valores', body);
+        registrosDB.unshift({
+            id: Date.now(),
+            usuario: currentUser.nome,
+            setor: currentSector.nome,
+            timestamp: new Date().toLocaleString('pt-BR'),
+            indicadores: currentSector.indicadores,
+            status: 'Enviado para DB'
+        });
+        updateHistoryDisplay();
+        alert('Dados enviados para banco de dados com sucesso!');
+        backToSectors();
+    } catch (err) {
+        alert(`Erro ao enviar para DB: ${err.message}`);
+    } finally {
+        setButtonLoading(sendBtn, false);
+    }
 }
 
 /**
@@ -1565,5 +1620,5 @@ async function adminUpdateIndicador() {
  * e quiser validar /api/me antes de liberar a UI.
  */
 document.addEventListener('DOMContentLoaded', function () {
-    showLoginScreen();
+    tryRestoreSession();
 });

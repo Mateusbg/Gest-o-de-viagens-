@@ -272,6 +272,26 @@ def _fetch_user_by_email(cur, email: str):
         "ativo": bool(row[6]),
     }
 
+def _fetch_user_by_id(cur, user_id: int):
+    cur.execute(
+        "SELECT ZFU_ID, ZFU_NOME, ZFU_EMAIL, ZFU_SETOR_ID, ZFU_NIVEL, ZFU_SENHA_HASH, ZFU_ATIVO "
+        "FROM ZFU WHERE ZFU_ID = ?",
+        (int(user_id),)
+    )
+    row = cur.fetchone()
+    if not row:
+        return None
+    return {
+        "id": int(row[0]),
+        "nome": row[1],
+        "email": row[2],
+        "setor_id": row[3],
+        "nivel": int(row[4] or 1),
+        "senha_hash": row[5],
+        "ativo": bool(row[6]),
+    }
+
+
 def _get_assigned_sector_ids(cur, user_id: int) -> list[int]:
     cur.execute(
         "SELECT DISTINCT ZIN_SETOR_ID FROM ZIN WHERE ZIN_ATIVO = 1 AND ZIN_RESPONSAVEL_ID = ?",
@@ -296,6 +316,13 @@ def _can_user_fill_indicator(user: dict, indicador_setor_id: int, responsavel_id
     nivel = int(user.get("nivel") or 1)
     user_id = int(user.get("id"))
     user_setor_id = user.get("setor_id")
+
+def _log_action(user: dict | None, action: str, details: str | None = None):
+    who = f"user_id={user.get('id')}" if user else "user_id=none"
+    when = datetime.utcnow().isoformat()
+    extra = f" details={details}" if details else ""
+    print(f"[AUDIT] {when} action={action} {who}{extra}")
+
 
     if nivel >= 5:
         return True
@@ -325,7 +352,7 @@ def ensure_seed_admin():
     seed_email = (os.getenv("SEED_ADMIN_EMAIL") or "admin@empresa.com").strip()
     seed_pass = os.getenv("SEED_ADMIN_PASSWORD") or "1234"
 
-    legacy_email = (os.getenv("SEED_LEGACY_ADMIN_EMAIL") or "ad").strip()
+    legacy_email = (os.getenv("SEED_LEGACY_ADMIN_EMAIL") or "").strip()
     legacy_pass = os.getenv("SEED_LEGACY_ADMIN_PASSWORD") or "1120"
 
     with get_db_connection() as conn:
@@ -375,6 +402,87 @@ def _pick(d: dict, *keys, default=None):
         if k in d and d.get(k) is not None:
             return d.get(k)
     return default
+
+def _get_or_create_setor(cur, setor_id, setor_nome):
+    if setor_id:
+        cur.execute("SELECT ZSE_ID FROM ZSE WHERE ZSE_ID = ?", (int(setor_id),))
+        row = cur.fetchone()
+        if row and row[0]:
+            return int(row[0])
+        raise ValueError("Setor informado nao existe")
+
+    nome = (setor_nome or "").strip()
+    if not nome:
+        raise ValueError("Setor nao informado")
+
+    cur.execute("SELECT ZSE_ID FROM ZSE WHERE LOWER(ZSE_NOME) = LOWER(?)", (nome,))
+    row = cur.fetchone()
+    if row and row[0]:
+        return int(row[0])
+
+    cur.execute("INSERT INTO ZSE (ZSE_NOME, ZSE_ATIVO) VALUES (?, 1)", (nome,))
+    cur.execute("SELECT SCOPE_IDENTITY()")
+    return int(cur.fetchone()[0])
+
+def _get_or_create_funcionario(cur, funcionario_id, funcionario_email, funcionario_nome, setor_id=None):
+    if funcionario_id:
+        cur.execute("SELECT ZFU_ID FROM ZFU WHERE ZFU_ID = ?", (int(funcionario_id),))
+        row = cur.fetchone()
+        if row and row[0]:
+            return int(row[0])
+        raise ValueError("Funcionario informado nao existe")
+
+    email = (funcionario_email or "").strip()
+    nome = (funcionario_nome or "").strip() or email
+
+    if email:
+        cur.execute("SELECT ZFU_ID FROM ZFU WHERE LOWER(ZFU_EMAIL) = LOWER(?)", (email,))
+        row = cur.fetchone()
+        if row and row[0]:
+            return int(row[0])
+    else:
+        if not nome:
+            raise ValueError("Funcionario nao informado")
+        cur.execute("SELECT ZFU_ID FROM ZFU WHERE LOWER(ZFU_NOME) = LOWER(?)", (nome,))
+        row = cur.fetchone()
+        if row and row[0]:
+            return int(row[0])
+        raise ValueError("Email do funcionario obrigatorio para criar")
+
+    cur.execute(
+        "INSERT INTO ZFU (ZFU_NOME, ZFU_EMAIL, ZFU_SETOR_ID, ZFU_NIVEL, ZFU_SENHA_HASH, ZFU_ATIVO, ZFU_CRIADO_EM) "
+        "VALUES (?, ?, ?, 1, ?, 1, SYSUTCDATETIME())",
+        (nome, email, setor_id, hash_password("1234"))
+    )
+    cur.execute("SELECT SCOPE_IDENTITY()")
+    return int(cur.fetchone()[0])
+
+def _get_or_create_indicador(cur, indicador_id, setor_id, codigo, nome, tipo=None, unidade=None, meta=None):
+    if indicador_id:
+        cur.execute("SELECT ZIN_ID FROM ZIN WHERE ZIN_ID = ?", (int(indicador_id),))
+        row = cur.fetchone()
+        if row and row[0]:
+            return int(row[0])
+        raise ValueError("Indicador informado nao existe")
+
+    if not setor_id or codigo is None:
+        raise ValueError("Indicador sem setor ou codigo")
+
+    cur.execute(
+        "SELECT ZIN_ID FROM ZIN WHERE ZIN_SETOR_ID = ? AND ZIN_CODIGO = ?",
+        (int(setor_id), str(codigo))
+    )
+    row = cur.fetchone()
+    if row and row[0]:
+        return int(row[0])
+
+    cur.execute(
+        "INSERT INTO ZIN (ZIN_SETOR_ID, ZIN_CODIGO, ZIN_NOME, ZIN_TIPO, ZIN_UNIDADE, ZIN_META, ZIN_ATIVO, ZIN_CRIADO_EM) "
+        "VALUES (?, ?, ?, ?, ?, ?, 1, SYSUTCDATETIME())",
+        (int(setor_id), str(codigo), str(nome), tipo, unidade, meta)
+    )
+    cur.execute("SELECT SCOPE_IDENTITY()")
+    return int(cur.fetchone()[0])
 
 
 
@@ -427,6 +535,30 @@ def api_auth_login():
                     "setor_id": user["setor_id"],
                     "nivel": user["nivel"],
                     "perfil": ROLE_MAP.get(user["nivel"], str(user["nivel"]))
+                }
+            })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/me", methods=["GET"])
+@require_level(1)
+def api_me():
+    user = request.current_user
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            db_user = _fetch_user_by_id(cur, int(user['id']))
+            if not db_user or not db_user.get('ativo'):
+                return jsonify({"ok": False, "error": "Usuario inativo"}), 401
+            return jsonify({
+                "ok": True,
+                "user": {
+                    "id": db_user['id'],
+                    "nome": db_user['nome'],
+                    "email": db_user['email'],
+                    "setor_id": db_user['setor_id'],
+                    "nivel": db_user['nivel'],
+                    "perfil": ROLE_MAP.get(db_user['nivel'], str(db_user['nivel']))
                 }
             })
     except Exception as e:
@@ -490,6 +622,7 @@ def api_create_setor():
                 (nome,)
             )
             conn.commit()
+            _log_action(request.current_user, 'setor_criar', f"nome={nome}")
             return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -526,6 +659,7 @@ def api_update_setor(setor_id: int):
                 params
             )
             conn.commit()
+            _log_action(request.current_user, 'setor_atualizar', f"setor_id={setor_id}")
             return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -767,6 +901,8 @@ def api_salvar_valores_definitivos():
             conn.commit()
 
         return jsonify({"ok": True})
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
     except Exception as e:
         print("[ERRO] /api/valores:", str(e))
         print(traceback.format_exc())
@@ -872,6 +1008,8 @@ def api_salvar_draft():
             conn.commit()
 
         return jsonify({"ok": True})
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
     except Exception as e:
         print("[ERRO] /api/drafts:", str(e))
         print(traceback.format_exc())
@@ -974,6 +1112,7 @@ def api_submit_drafts():
                 params
             )
             conn.commit()
+            _log_action(request.current_user, 'user_criar', f"email={email}")
             return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -1041,6 +1180,7 @@ def api_approve_drafts():
             )
 
             conn.commit()
+            _log_action(request.current_user, 'drafts_aprovar', f"setor_id={setor_id} periodo={p} qtd={len(items)}")
             return jsonify({"ok": True, "aprovados": len(items)})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -1096,6 +1236,7 @@ def api_create_user():
                 (nome, email, setor_id, nivel, hash_password(senha))
             )
             conn.commit()
+            _log_action(request.current_user, 'user_atualizar', f"user_id={user_id}")
             return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -1144,6 +1285,7 @@ def api_update_user(user_id: int):
                 params
             )
             conn.commit()
+            _log_action(request.current_user, 'user_reset_senha', f"user_id={user_id}")
             return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -1174,6 +1316,7 @@ def api_reset_password(user_id: int):
                 (hash_password(new_pass), user_id)
             )
             conn.commit()
+            _log_action(request.current_user, 'indicador_criar', f"setor_id={setor_id} codigo={codigo}")
             return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -1209,6 +1352,7 @@ def api_create_indicador():
                 (setor_id, codigo, nome, tipo, unidade, meta, responsavel_id)
             )
             conn.commit()
+            _log_action(request.current_user, 'indicador_atualizar', f"indicador_id={indicador_id}")
             return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500

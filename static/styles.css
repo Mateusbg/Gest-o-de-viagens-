@@ -491,6 +491,11 @@ header {
     background: #15803d;
 }
 
+.btn-loading {
+    opacity: 0.7;
+    cursor: wait;
+}
+
 
 /* =========================================================
    ===== ADMIN PAINEL =====
