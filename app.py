@@ -55,7 +55,7 @@ load_dotenv(dotenv_path=_ROOT / ".env", override=False)
 # =========================
 import os
 import traceback
-from datetime import datetime, timedelta, date, timezone
+from datetime import datetime, timedelta, timezone
 
 import pyodbc
 import jwt

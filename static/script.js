@@ -19,10 +19,7 @@ let adminIndicadoresCache = {};
 const adminState = {
     users: [],
     setores: [],
-    indicadores: [],
-    selectedUserId: null,
-    selectedIndicadorId: null,
-    indicadorSetorId: null
+    indicadores: []
 };
 
 // ===== PERFIL / REGRAS =====
@@ -814,7 +811,6 @@ function selectAdminUser(userId) {
     const uid = Number(userId);
     const user = adminState.users.find(u => Number(u.ZFU_ID) === uid);
     if (!user) return;
-    adminState.selectedUserId = uid;
     document.getElementById('adminUserId').value = user.ZFU_ID ?? '';
     document.getElementById('adminUserNomeEdit').value = user.ZFU_NOME ?? '';
     document.getElementById('adminUserEmailEdit').value = user.ZFU_EMAIL ?? '';
@@ -1016,7 +1012,6 @@ function selectAdminIndicador(indId) {
     const iid = Number(indId);
     const indicador = adminState.indicadores.find(i => Number(i.ZIN_ID) === iid);
     if (!indicador) return;
-    adminState.selectedIndicadorId = iid;
     document.getElementById('adminIndicadorId').value = indicador.ZIN_ID ?? '';
     document.getElementById('adminIndicadorNomeEdit').value = indicador.ZIN_NOME ?? '';
     document.getElementById('adminIndicadorTipoEdit').value = indicador.ZIN_TIPO ?? '';
