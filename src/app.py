@@ -1079,7 +1079,7 @@ def api_listar_drafts():
                 else:
                     where.append("1=0")
 
-    sql = f"""
+        sql = f"""
             SELECT
                 ZDR_ID, ZDR_INDICADOR_ID, ZDR_SETOR_ID, ZDR_FUNCIONARIO_ID,
                 ZDR_PERIODO, ZDR_VALOR, ZDR_STATUS,
