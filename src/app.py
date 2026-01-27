@@ -605,16 +605,25 @@ def api_setores():
 def api_gestor_funcionarios():
     """Lista funcionarios do setor do lider (nivel 3+)."""
     user = request.current_user
-    if not user.get("setor_id"):
-        return jsonify([])
+    setor_id = request.args.get("setorId") or request.args.get("setor_id")
+    if not _is_gestao_or_admin(user):
+        if not user.get("setor_id"):
+            return jsonify([])
+        setor_id = user.get("setor_id")
     try:
         with get_db_connection() as conn:
             cur = conn.cursor()
-            cur.execute(
-                "SELECT ZFU_ID, ZFU_NOME, ZFU_EMAIL, ZFU_SETOR_ID, ZFU_NIVEL, ZFU_ATIVO "
-                "FROM ZFU WHERE ZFU_SETOR_ID = ? AND ZFU_ATIVO = 1 ORDER BY ZFU_NOME",
-                (int(user["setor_id"]),)
-            )
+            if setor_id:
+                cur.execute(
+                    "SELECT ZFU_ID, ZFU_NOME, ZFU_EMAIL, ZFU_SETOR_ID, ZFU_NIVEL, ZFU_ATIVO "
+                    "FROM ZFU WHERE ZFU_SETOR_ID = ? AND ZFU_ATIVO = 1 ORDER BY ZFU_NOME",
+                    (int(setor_id),)
+                )
+            else:
+                cur.execute(
+                    "SELECT ZFU_ID, ZFU_NOME, ZFU_EMAIL, ZFU_SETOR_ID, ZFU_NIVEL, ZFU_ATIVO "
+                    "FROM ZFU WHERE ZFU_ATIVO = 1 ORDER BY ZFU_NOME"
+                )
             rows = cur.fetchall()
             return jsonify(_rows_to_dicts(cur, rows))
     except Exception as e:
@@ -1141,35 +1150,56 @@ def api_listar_drafts_pendentes():
     if not _is_gestao_or_admin(user):
         setor_id = user.get("setor_id")
 
-    if not setor_id:
-        return jsonify({"ok": False, "error": "Informe setor_id"}), 400
-
     try:
         with get_db_connection() as conn:
             cur = conn.cursor()
-            cur.execute(
-                """
-                SELECT
-                    d.ZDR_ID,
-                    d.ZDR_INDICADOR_ID,
-                    i.ZIN_NOME AS INDICADOR_NOME,
-                    d.ZDR_SETOR_ID,
-                    s.ZSE_NOME AS SETOR_NOME,
-                    d.ZDR_FUNCIONARIO_ID,
-                    f.ZFU_NOME AS FUNCIONARIO_NOME,
-                    d.ZDR_PERIODO,
-                    d.ZDR_VALOR,
-                    d.ZDR_STATUS,
-                    d.ZDR_CRIADO_EM
-                FROM ZDR d
-                INNER JOIN ZIN i ON i.ZIN_ID = d.ZDR_INDICADOR_ID
-                INNER JOIN ZSE s ON s.ZSE_ID = d.ZDR_SETOR_ID
-                LEFT JOIN ZFU f ON f.ZFU_ID = d.ZDR_FUNCIONARIO_ID
-                WHERE d.ZDR_STATUS = 'PENDING' AND d.ZDR_SETOR_ID = ?
-                ORDER BY d.ZDR_CRIADO_EM DESC
-                """,
-                (int(setor_id),)
-            )
+            if setor_id:
+                cur.execute(
+                    """
+                    SELECT
+                        d.ZDR_ID,
+                        d.ZDR_INDICADOR_ID,
+                        i.ZIN_NOME AS INDICADOR_NOME,
+                        d.ZDR_SETOR_ID,
+                        s.ZSE_NOME AS SETOR_NOME,
+                        d.ZDR_FUNCIONARIO_ID,
+                        f.ZFU_NOME AS FUNCIONARIO_NOME,
+                        d.ZDR_PERIODO,
+                        d.ZDR_VALOR,
+                        d.ZDR_STATUS,
+                        d.ZDR_CRIADO_EM
+                    FROM ZDR d
+                    INNER JOIN ZIN i ON i.ZIN_ID = d.ZDR_INDICADOR_ID
+                    INNER JOIN ZSE s ON s.ZSE_ID = d.ZDR_SETOR_ID
+                    LEFT JOIN ZFU f ON f.ZFU_ID = d.ZDR_FUNCIONARIO_ID
+                    WHERE d.ZDR_STATUS = 'PENDING' AND d.ZDR_SETOR_ID = ?
+                    ORDER BY d.ZDR_CRIADO_EM DESC
+                    """,
+                    (int(setor_id),)
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT
+                        d.ZDR_ID,
+                        d.ZDR_INDICADOR_ID,
+                        i.ZIN_NOME AS INDICADOR_NOME,
+                        d.ZDR_SETOR_ID,
+                        s.ZSE_NOME AS SETOR_NOME,
+                        d.ZDR_FUNCIONARIO_ID,
+                        f.ZFU_NOME AS FUNCIONARIO_NOME,
+                        d.ZDR_PERIODO,
+                        d.ZDR_VALOR,
+                        d.ZDR_STATUS,
+                        d.ZDR_CRIADO_EM
+                    FROM ZDR d
+                    INNER JOIN ZIN i ON i.ZIN_ID = d.ZDR_INDICADOR_ID
+                    INNER JOIN ZSE s ON s.ZSE_ID = d.ZDR_SETOR_ID
+                    LEFT JOIN ZFU f ON f.ZFU_ID = d.ZDR_FUNCIONARIO_ID
+                    WHERE d.ZDR_STATUS = 'PENDING'
+                    ORDER BY d.ZDR_CRIADO_EM DESC
+                    """
+                )
             rows = cur.fetchall()
             return jsonify(_rows_to_dicts(cur, rows))
     except Exception as e:
@@ -1218,7 +1248,11 @@ def api_submit_drafts():
                 params
             )
             conn.commit()
-            _log_action(request.current_user, 'user_criar', f"email={email}")
+            _log_action(
+                request.current_user,
+                'drafts_submit',
+                f"setor_id={setor_id} periodo={p} user_id={user.get('id')}"
+            )
             return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -1432,8 +1466,10 @@ def api_create_user():
                 "VALUES (?, ?, ?, ?, ?, 1, SYSUTCDATETIME())",
                 (nome, email, setor_id, nivel, hash_password(senha))
             )
+            cur.execute("SELECT SCOPE_IDENTITY()")
+            new_id = int(cur.fetchone()[0])
             conn.commit()
-            _log_action(request.current_user, 'user_atualizar', f"user_id={user_id}")
+            _log_action(request.current_user, 'user_criar', f"user_id={new_id} email={email}")
             return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -1482,7 +1518,7 @@ def api_update_user(user_id: int):
                 params
             )
             conn.commit()
-            _log_action(request.current_user, 'user_reset_senha', f"user_id={user_id}")
+            _log_action(request.current_user, 'user_atualizar', f"user_id={user_id}")
             return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -1513,7 +1549,7 @@ def api_reset_password(user_id: int):
                 (hash_password(new_pass), user_id)
             )
             conn.commit()
-            _log_action(request.current_user, 'indicador_criar', f"setor_id={setor_id} codigo={codigo}")
+            _log_action(request.current_user, 'user_reset_senha', f"user_id={user_id}")
             return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -1548,8 +1584,14 @@ def api_create_indicador():
                 "VALUES (?, ?, ?, ?, ?, ?, 1, SYSUTCDATETIME(), ?)",
                 (setor_id, codigo, nome, tipo, unidade, meta, responsavel_id)
             )
+            cur.execute("SELECT SCOPE_IDENTITY()")
+            new_id = int(cur.fetchone()[0])
             conn.commit()
-            _log_action(request.current_user, 'indicador_atualizar', f"indicador_id={indicador_id}")
+            _log_action(
+                request.current_user,
+                'indicador_criar',
+                f"indicador_id={new_id} setor_id={setor_id} codigo={codigo}"
+            )
             return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500

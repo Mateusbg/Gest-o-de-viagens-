@@ -53,6 +53,7 @@ let setoresApi = [];
  * formato: { "setorId": [indicadores...] }
  */
 let adminIndicadoresCache = {};
+let pendingAdminSetorId = null;
 
 /**
  * Estado do Admin em memória:
@@ -85,7 +86,7 @@ function isAdminUser(user) {
 
 function isManagerUser(user) {
     const nivel = Number(user?.nivel || 1);
-    return nivel === 3;
+    return nivel >= 3;
 }
 /**
  * Normaliza setor vindo da API para o formato usado no front.
@@ -564,6 +565,12 @@ function showAdminScreen() {
     loadAdminData();
 }
 
+function openAdminEditSetor(setorId) {
+    pendingAdminSetorId = Number(setorId);
+    showAdminScreen();
+    showUsersSection('editSetor');
+}
+
 /**
  * Volta do admin para setores.
  */
@@ -709,16 +716,42 @@ async function loadSectors() {
         );
         const countMap = new Map(counts.map(c => [String(c.id), c.count]));
 
-        // Renderiza botões
+        const isAdmin = isAdminUser(currentUser);
+
+        // Renderiza cart?es
         setoresApi.forEach(setor => {
-            const btn = document.createElement('button');
             const count = countMap.get(String(setor.id)) ?? 0;
+            const card = document.createElement('div');
+            card.className = `sector-btn ${setor.classe}${isAdmin ? ' has-actions' : ''}`;
 
-            btn.className = `sector-btn ${setor.classe}`;
-            btn.innerHTML = `<h2>${setor.nome}</h2><p>${count} indicadores</p>`;
-            btn.onclick = () => openSector(setor);
+            if (isAdmin) {
+                card.innerHTML = `
+                    <div class="sector-content">
+                        <h2>${setor.nome}</h2>
+                        <p>${count} indicadores</p>
+                    </div>
+                    <div class="sector-actions">
+                        <button type="button" class="btn btn-save sector-action" data-action="edit">Editar cartao</button>
+                        <button type="button" class="btn btn-send sector-action" data-action="open">Abrir indicador</button>
+                    </div>
+                `;
+                card.querySelectorAll('button[data-action]').forEach(btn => {
+                    btn.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        const action = btn.getAttribute('data-action');
+                        if (action === 'open') {
+                            openSector(setor);
+                        } else if (action === 'edit') {
+                            openAdminEditSetor(setor.id);
+                        }
+                    });
+                });
+            } else {
+                card.innerHTML = `<h2>${setor.nome}</h2><p>${count} indicadores</p>`;
+                card.onclick = () => openSector(setor);
+            }
 
-            grid.appendChild(btn);
+            grid.appendChild(card);
         });
     } catch (err) {
         alert(`Erro ao carregar setores: ${err.message}`);
@@ -927,6 +960,12 @@ async function handleSave() {
         return;
     }
 
+    const confirmed = await showConfirmModal({
+        title: 'Confirmar salvamento',
+        message: 'Deseja salvar este rascunho?'
+    });
+    if (!confirmed) return;
+
     const body = {
         setorId: currentSector.id,
         setorNome: currentSector.nome,
@@ -965,6 +1004,12 @@ async function handleSendDB() {
         alert('Apenas LIDER, GESTAO ou ADM podem enviar valores definitivos para o banco. Use "Salvar" para rascunho.');
         return;
     }
+
+    const confirmed = await showConfirmModal({
+        title: 'Confirmar envio',
+        message: 'Deseja enviar os indicadores para o banco de dados?'
+    });
+    if (!confirmed) return;
 
     const periodo = getPeriodoAtualOuDoFormulario();
     const valores = buildValoresPayload();
@@ -1152,6 +1197,90 @@ function setSelectValue(selectEl, value) {
     selectEl.value = val;
 }
 
+function showToast(message, type) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast${type === 'error' ? ' error' : ''}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+function showConfirmModal({ title, message }) {
+    const modal = document.getElementById('confirmModal');
+    const titleEl = document.getElementById('confirmTitle');
+    const messageEl = document.getElementById('confirmMessage');
+    const okBtn = document.getElementById('confirmOkBtn');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+
+    if (!modal || !titleEl || !messageEl || !okBtn || !cancelBtn) {
+        return Promise.resolve(false);
+    }
+
+    titleEl.textContent = title || 'Confirmar';
+    messageEl.textContent = message || 'Tem certeza?';
+    modal.classList.remove('hidden');
+
+    return new Promise(resolve => {
+        const cleanup = () => {
+            modal.classList.add('hidden');
+            okBtn.onclick = null;
+            cancelBtn.onclick = null;
+        };
+        okBtn.onclick = () => {
+            cleanup();
+            resolve(true);
+        };
+        cancelBtn.onclick = () => {
+            cleanup();
+            resolve(false);
+        };
+    });
+}
+
+function showPromptModal({ title, message, placeholder, type }) {
+    const modal = document.getElementById('promptModal');
+    const titleEl = document.getElementById('promptTitle');
+    const messageEl = document.getElementById('promptMessage');
+    const inputEl = document.getElementById('promptInput');
+    const okBtn = document.getElementById('promptOkBtn');
+    const cancelBtn = document.getElementById('promptCancelBtn');
+
+    if (!modal || !titleEl || !messageEl || !inputEl || !okBtn || !cancelBtn) {
+        return Promise.resolve(null);
+    }
+
+    titleEl.textContent = title || 'Informe';
+    messageEl.textContent = message || '';
+    inputEl.value = '';
+    inputEl.type = type || 'text';
+    inputEl.placeholder = placeholder || '';
+    modal.classList.remove('hidden');
+    inputEl.focus();
+
+    return new Promise(resolve => {
+        const cleanup = () => {
+            modal.classList.add('hidden');
+            okBtn.onclick = null;
+            cancelBtn.onclick = null;
+        };
+        okBtn.onclick = () => {
+            const value = inputEl.value;
+            cleanup();
+            resolve(value);
+        };
+        cancelBtn.onclick = () => {
+            cleanup();
+            resolve(null);
+        };
+    });
+}
+
 async function loadManagerData() {
     try {
         const [funcionariosData, pendentesData] = await Promise.all([
@@ -1233,27 +1362,42 @@ function renderManagerIndicadores(items) {
 
 async function approveDraft(draftId) {
     try {
+        const confirmed = await showConfirmModal({
+            title: 'Aprovar indicador',
+            message: 'Deseja aprovar este indicador?'
+        });
+        if (!confirmed) return;
+
         await apiPost(`/api/drafts/${draftId}/approve`, {});
         await loadManagerData();
-        alert('Indicador aprovado');
+        showToast('Indicador aprovado');
     } catch (err) {
-        alert(`Erro ao aprovar: ${err.message}`);
+        showToast(`Erro ao aprovar: ${err.message}`, 'error');
     }
 }
 
 async function rejectDraft(draftId) {
-    const motivo = prompt('Motivo da recusa?');
+    const motivo = await showPromptModal({
+        title: 'Recusar indicador',
+        message: 'Informe o motivo da recusa',
+        placeholder: 'Motivo da recusa'
+    });
     if (motivo === null) return;
     if (!motivo.trim()) {
-        alert('Informe o motivo');
+        showToast('Informe o motivo', 'error');
         return;
     }
+    const confirmed = await showConfirmModal({
+        title: 'Confirmar recusa',
+        message: 'Deseja recusar este indicador?'
+    });
+    if (!confirmed) return;
     try {
         await apiPost(`/api/drafts/${draftId}/reject`, { motivo: motivo.trim() });
         await loadManagerData();
-        alert('Indicador recusado');
+        showToast('Indicador recusado');
     } catch (err) {
-        alert(`Erro ao recusar: ${err.message}`);
+        showToast(`Erro ao recusar: ${err.message}`, 'error');
     }
 }
 
@@ -1300,6 +1444,12 @@ async function loadAdminData() {
 
             await loadAdminIndicadores(defaultSetorId);
             await refreshIndicadorCodigoForSetor(defaultSetorId);
+        }
+
+        if (pendingAdminSetorId) {
+            selectAdminSetor(pendingAdminSetorId);
+            showUsersSection('editSetor');
+            pendingAdminSetorId = null;
         }
     } catch (err) {
         alert(`Erro ao carregar admin: ${err.message}`);
@@ -1374,7 +1524,9 @@ function renderAdminUsers() {
             <td>
                 <button class="btn btn-save admin-btn-row" data-user-id="${u.ZFU_ID}" data-user-action="perm">Editar permissao</button>
                 <button class="btn btn-save admin-btn-row" data-user-id="${u.ZFU_ID}" data-user-action="edit">Alterar cadastro</button>
-                <button class="btn btn-send admin-btn-row" data-user-id="${u.ZFU_ID}" data-user-action="block">Bloquear</button>
+                <button class="btn btn-send admin-btn-row" data-user-id="${u.ZFU_ID}" data-user-action="toggle" data-user-active="${u.ZFU_ATIVO ? 1 : 0}">
+                    ${u.ZFU_ATIVO ? 'Bloquear' : 'Desbloquear'}
+                </button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -1385,8 +1537,9 @@ function renderAdminUsers() {
             const id = btn.getAttribute('data-user-id');
             const action = btn.getAttribute('data-user-action');
 
-            if (action === 'block') {
-                adminBlockUser(id);
+            if (action === 'toggle') {
+                const active = Number(btn.getAttribute('data-user-active') || '0');
+                adminToggleUser(id, active ? 0 : 1);
                 return;
             }
 
@@ -1420,9 +1573,15 @@ async function adminCreateUser() {
         const senha = document.getElementById('adminUserSenha').value.trim() || '1234';
 
         if (!nome || !email) {
-            alert('Informe nome e email');
+            showToast('Informe nome e email', 'error');
             return;
         }
+
+        const confirmed = await showConfirmModal({
+            title: 'Confirmar criacao',
+            message: `Criar usuario ${nome}?`
+        });
+        if (!confirmed) return;
 
         await apiPost('/api/users', {
             nome,
@@ -1438,9 +1597,9 @@ async function adminCreateUser() {
         document.getElementById('adminUserEmail').value = '';
         document.getElementById('adminUserSenha').value = '';
 
-        alert('Usuario criado');
+        showToast('Usuario criado');
     } catch (err) {
-        alert(`Erro ao criar usuario: ${err.message}`);
+        showToast(`Erro ao criar usuario: ${err.message}`, 'error');
     }
 }
 
@@ -1448,7 +1607,7 @@ async function adminUpdateUser() {
     try {
         const id = document.getElementById('adminUserId').value;
         if (!id) {
-            alert('Selecione um usuario');
+            showToast('Selecione um usuario', 'error');
             return;
         }
 
@@ -1460,12 +1619,18 @@ async function adminUpdateUser() {
             ativo: document.getElementById('adminUserAtivoEdit').checked ? 1 : 0
         };
 
+        const confirmed = await showConfirmModal({
+            title: 'Confirmar alteracao',
+            message: `Alterar cadastro do usuario ${body.nome || id}?`
+        });
+        if (!confirmed) return;
+
         await apiPut(`/api/users/${id}`, body);
         await loadAdminData();
 
-        alert('Usuario atualizado');
+        showToast('Usuario atualizado');
     } catch (err) {
-        alert(`Erro ao atualizar usuario: ${err.message}`);
+        showToast(`Erro ao atualizar usuario: ${err.message}`, 'error');
     }
 }
 
@@ -1473,36 +1638,56 @@ async function adminResetUserPassword() {
     try {
         const id = document.getElementById('adminUserId').value;
         if (!id) {
-            alert('Selecione um usuario');
+            showToast('Selecione um usuario', 'error');
             return;
         }
 
-        const senhaRaw = prompt('Nova senha (deixe vazio para 1234):');
+        const senhaRaw = await showPromptModal({
+            title: 'Redefinir senha',
+            message: 'Digite a nova senha (vazio = 1234)',
+            placeholder: 'Nova senha',
+            type: 'password'
+        });
         if (senhaRaw === null) return;
+
+        const confirmed = await showConfirmModal({
+            title: 'Confirmar redefinicao',
+            message: 'Deseja redefinir a senha deste usuario?'
+        });
+        if (!confirmed) return;
 
         const senha = senhaRaw.trim() || '1234';
         await apiPost(`/api/users/${id}/reset-password`, { senha });
 
-        alert('Senha redefinida');
+        showToast('Senha redefinida');
     } catch (err) {
-        alert(`Erro ao resetar senha: ${err.message}`);
+        showToast(`Erro ao resetar senha: ${err.message}`, 'error');
     }
 }
 
-async function adminBlockUser(userId) {
+async function adminToggleUser(userId, nextActive) {
     try {
         const id = Number(userId);
         if (!id) {
-            alert('Usuario invalido');
+            showToast('Usuario invalido', 'error');
             return;
         }
 
-        await apiPut(`/api/users/${id}`, { ativo: 0 });
+        const isBlocking = Number(nextActive) === 0;
+        const confirmed = await showConfirmModal({
+            title: isBlocking ? 'Bloquear usuario' : 'Desbloquear usuario',
+            message: isBlocking
+                ? 'Tem certeza que deseja bloquear este usuario?'
+                : 'Tem certeza que deseja desbloquear este usuario?'
+        });
+        if (!confirmed) return;
+
+        await apiPut(`/api/users/${id}`, { ativo: nextActive ? 1 : 0 });
         await loadAdminData();
 
-        alert('Usuario bloqueado');
+        showToast(isBlocking ? 'Usuario bloqueado com sucesso' : 'Usuario desbloqueado com sucesso');
     } catch (err) {
-        alert(`Erro ao bloquear usuario: ${err.message}`);
+        showToast(`Erro ao atualizar usuario: ${err.message}`, 'error');
     }
 }
 
@@ -1527,6 +1712,12 @@ async function adminCreateSetor() {
             return;
         }
 
+        const confirmed = await showConfirmModal({
+            title: 'Confirmar criacao',
+            message: `Criar setor ${nome}?`
+        });
+        if (!confirmed) return;
+
         await apiPost('/api/setores', { nome });
         document.getElementById('adminSetorNome').value = '';
 
@@ -1548,6 +1739,12 @@ async function adminUpdateSetor() {
         const nome = document.getElementById('adminSetorNomeEdit').value.trim();
         const ativo = document.getElementById('adminSetorAtivoEdit').checked ? 1 : 0;
 
+        const confirmed = await showConfirmModal({
+            title: 'Confirmar alteracao',
+            message: `Alterar setor ${nome || id}?`
+        });
+        if (!confirmed) return;
+
         await apiPut(`/api/setores/${id}`, { nome, ativo });
         await loadAdminData();
 
@@ -1564,6 +1761,12 @@ async function adminDisableSetor() {
             alert('Selecione um setor');
             return;
         }
+
+        const confirmed = await showConfirmModal({
+            title: 'Confirmar inativacao',
+            message: 'Deseja inativar este setor?'
+        });
+        if (!confirmed) return;
 
         await apiPut(`/api/setores/${id}`, { ativo: 0 });
         await loadAdminData();
@@ -1662,6 +1865,12 @@ async function adminCreateIndicador() {
             return;
         }
 
+        const confirmed = await showConfirmModal({
+            title: 'Confirmar criacao',
+            message: `Criar indicador ${nome}?`
+        });
+        if (!confirmed) return;
+
         await apiPost('/api/indicadores', {
             setor_id: Number(setorId),
             codigo,
@@ -1710,6 +1919,12 @@ async function adminUpdateIndicador() {
             })(),
             ativo: document.getElementById('adminIndicadorAtivoEdit').checked ? 1 : 0
         };
+
+        const confirmed = await showConfirmModal({
+            title: 'Confirmar alteracao',
+            message: `Alterar indicador ${body.nome || id}?`
+        });
+        if (!confirmed) return;
 
         await apiPut(`/api/indicadores/${id}`, body);
 

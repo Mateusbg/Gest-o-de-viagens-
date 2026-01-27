@@ -457,7 +457,7 @@
         </div>
     </div>
 
-<div id="indicatorsScreen" class="hidden">
+    <div id="indicatorsScreen" class="hidden">
         <header>
             <div class="header-container">
                 <div class="indicators-header">
@@ -503,5 +503,30 @@
             </div>
         </div>
     </div>
+
+    <div id="confirmModal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="confirmTitle">Confirmar</h3>
+            <p id="confirmMessage">Tem certeza?</p>
+            <div class="modal-actions">
+                <button class="btn btn-save" id="confirmOkBtn">Confirmar</button>
+                <button class="btn btn-send" id="confirmCancelBtn">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="promptModal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="promptTitle">Informe</h3>
+            <p id="promptMessage">Digite abaixo</p>
+            <input id="promptInput" type="text" class="modal-input" placeholder="">
+            <div class="modal-actions">
+                <button class="btn btn-save" id="promptOkBtn">Confirmar</button>
+                <button class="btn btn-send" id="promptCancelBtn">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
 </body>
 </html>
