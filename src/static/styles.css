@@ -1,27 +1,14 @@
-/* =========================================================
-   RESET GLOBAL
-   Remove margens/paddings padrão e padroniza box-model
-   ========================================================= */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* =========================================================
-   CONFIGURAÇÕES GERAIS DO BODY
-   Fonte padrão + fundo gradiente global
-   ========================================================= */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
     min-height: 100vh;
 }
-
-
-/* =========================================================
-   ===== TELA DE LOGIN =====
-   ========================================================= */
 
 /* Container central da tela de login */
 .login-container {
@@ -153,11 +140,6 @@ body {
     margin-bottom: 6px;
 }
 
-
-/* =========================================================
-   ===== HEADER / NAVBAR =====
-   ========================================================= */
-
 /* Barra superior branca */
 .navbar {
     background-color: white;
@@ -227,11 +209,6 @@ header {
     background: #dc2626;
 }
 
-
-/* =========================================================
-   ===== TELA DE SETORES =====
-   ========================================================= */
-
 .sectors-container {
     max-width: 1280px;
     margin: 0 auto;
@@ -282,11 +259,6 @@ header {
 .sector-green { background: #10b981; }
 .sector-purple { background: #a855f7; }
 .sector-red { background: #ef4444; }
-
-
-/* =========================================================
-   ===== HISTÓRICO DE INDICADORES =====
-   ========================================================= */
 
 .history-section {
     background: #334155;
@@ -352,11 +324,6 @@ header {
     background: #b45309;
     color: white;
 }
-
-
-/* =========================================================
-   ===== TELA DE INDICADORES =====
-   ========================================================= */
 
 .indicators-header {
     display: flex;
@@ -496,11 +463,6 @@ header {
     cursor: wait;
 }
 
-
-/* =========================================================
-   ===== ADMIN PAINEL =====
-   ========================================================= */
-
 .admin-btn {
     background: #0ea5e9;
     color: white;
@@ -604,11 +566,6 @@ header {
     font-size: 12px;
 }
 
-
-/* =========================================================
-   ===== REGISTROS RECENTES =====
-   ========================================================= */
-
 .recent-records {
     margin-top: 32px;
     background: #334155;
@@ -649,11 +606,6 @@ header {
 .hidden {
     display: none;
 }
-
-
-/* =========================================================
-   ===== RESPONSIVO MOBILE =====
-   ========================================================= */
 
 @media (max-width: 768px) {
     .header-container {

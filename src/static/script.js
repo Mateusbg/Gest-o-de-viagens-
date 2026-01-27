@@ -1,20 +1,3 @@
-/* =========================================================
-   SISTEMA WEB DE INDICADORES - SCRIPT PRINCIPAL (Front-end)
-   ---------------------------------------------------------
-   Responsabilidades deste arquivo:
-   - Autenticação (login/logout + token)
-   - Navegação entre telas (login / setores / indicadores / admin)
-   - Integração com API (GET/POST/PUT com Bearer Token)
-   - Renderização dinâmica (setores e indicadores)
-   - Regras de permissão (perfil/nivel)
-   - Painel admin (usuários, setores, indicadores)
-   ========================================================= */
-
-
-/* =========================================================
-   0) VARIÁVEIS GLOBAIS / ESTADO DA APLICAÇÃO
-   ========================================================= */
-
 /**
  * Usuário logado no momento.
  * Estrutura típica:
@@ -83,11 +66,6 @@ const adminState = {
     indicadores: []
 };
 
-
-/* =========================================================
-   1) PERFIL / REGRAS DE PERMISSÃO
-   ========================================================= */
-
 /**
  * Retorna o perfil do usuário:
  * - LEITOR, EDITOR, LIDER, GESTAO, ADM
@@ -105,11 +83,10 @@ function isAdminUser(user) {
     return perfil === 'GESTAO' || perfil === 'ADM';
 }
 
-
-/* =========================================================
-   2) NORMALIZAÇÃO DE DADOS DA API (SETOR / INDICADOR)
-   ========================================================= */
-
+function isManagerUser(user) {
+    const nivel = Number(user?.nivel || 1);
+    return nivel === 3;
+}
 /**
  * Normaliza setor vindo da API para o formato usado no front.
  * Aceita campos alternativos (compatibilidade).
@@ -148,11 +125,6 @@ function normalizeIndicadorFromApi(i) {
         valor: null
     };
 }
-
-
-/* =========================================================
-   3) GERADOR / SUGESTÃO DE CÓDIGO PARA INDICADOR (ADMIN)
-   ========================================================= */
 
 /**
  * Extrai o último grupo numérico encontrado em um código.
@@ -198,11 +170,6 @@ function setIndicadorCodigoInput(value) {
     const input = document.getElementById('adminIndicadorCodigo');
     if (input && value) input.value = value;
 }
-
-
-/* =========================================================
-   4) INDICADORES DE DATA / PERÍODO / PAYLOAD
-   ========================================================= */
 
 /**
  * Determina se um indicador é do tipo data.
@@ -251,13 +218,6 @@ function buildValoresPayload() {
             valor: i.valor ?? null
         }));
 }
-
-
-/* =========================================================
-   5) CAMADA DE API (FETCH) - GET / POST / PUT
-   - Inclui Authorization Bearer quando há token válido.
-   - Trata 401 chamando handleUnauthorized()
-   ========================================================= */
 
 async function apiPost(url, body) {
     const token = normalizeToken(authToken);
@@ -352,11 +312,6 @@ function setButtonLoading(btn, isLoading, loadingText) {
     }
 }
 
-
-/* =========================================================
-   6) UTILITÁRIOS DE DATA (BR <-> ISO) + FORMATAÇÃO AUTOMÁTICA
-   ========================================================= */
-
 /**
  * Autoformata input text para DD/MM/AAAA enquanto digita.
  */
@@ -417,11 +372,6 @@ function converterDataParaBR(dataISO) {
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
-
-/* =========================================================
-   7) LOGIN / LOGOUT
-   ========================================================= */
-
 /**
  * Alterna visibilidade da senha (input password/text).
  */
@@ -477,6 +427,7 @@ async function handleLogin() {
         document.getElementById('userNameDisplay').textContent = currentUser.nome;
 
         updateAdminButton();
+        updateManagerButton();
         showSectorsScreen();
     } catch (err) {
         alert(err.message || 'Erro ao logar');
@@ -532,16 +483,11 @@ async function tryRestoreSession() {
     }
 }
 
-
-/* =========================================================
-   8) NAVEGAÇÃO ENTRE TELAS
-   ========================================================= */
-
 /**
  * Oculta todas as telas principais.
  */
 function hideAllScreens() {
-    ['loginScreen', 'sectorsScreen', 'indicatorsScreen', 'adminScreen'].forEach(id => {
+    ['loginScreen', 'sectorsScreen', 'indicatorsScreen', 'adminScreen', 'managerScreen'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -569,6 +515,17 @@ function updateAdminButton() {
     }
 }
 
+function updateManagerButton() {
+    const btn = document.getElementById('managerBtn');
+    if (!btn) return;
+
+    if (isManagerUser(currentUser)) {
+        btn.classList.remove('hidden');
+    } else {
+        btn.classList.add('hidden');
+    }
+}
+
 /**
  * Mostra tela de setores e atualiza dados.
  */
@@ -576,6 +533,7 @@ function showSectorsScreen() {
     loadSectors();
     updateHistoryDisplay();
     updateAdminButton();
+    updateManagerButton();
 
     hideAllScreens();
     document.getElementById('sectorsScreen').classList.remove('hidden');
@@ -613,6 +571,38 @@ function backToSectorsFromAdmin() {
     hideAllScreens();
     document.getElementById('sectorsScreen').classList.remove('hidden');
     updateHistoryDisplay();
+}
+
+function showManagerScreen() {
+    if (!isManagerUser(currentUser)) {
+        alert('Acesso negado');
+        return;
+    }
+
+    hideAllScreens();
+    document.getElementById('managerScreen').classList.remove('hidden');
+    showManagerSection('funcionarios');
+    loadManagerData();
+}
+
+function backToSectorsFromManager() {
+    hideAllScreens();
+    document.getElementById('sectorsScreen').classList.remove('hidden');
+    updateHistoryDisplay();
+}
+
+function showManagerSection(section) {
+    const funcionarios = document.getElementById('managerFuncionariosSection');
+    const indicadores = document.getElementById('managerIndicadoresSection');
+    if (!funcionarios || !indicadores) return;
+
+    if (section === 'indicadores') {
+        funcionarios.classList.add('hidden');
+        indicadores.classList.remove('hidden');
+    } else {
+        indicadores.classList.add('hidden');
+        funcionarios.classList.remove('hidden');
+    }
 }
 
 /**
@@ -690,11 +680,6 @@ function backToSectors() {
     loadSectors();
     updateHistoryDisplay();
 }
-
-
-/* =========================================================
-   9) SETORES: CARREGAMENTO E ABERTURA DO SETOR
-   ========================================================= */
 
 /**
  * Carrega setores via API:
@@ -834,9 +819,9 @@ async function openSector(setor) {
     const sendBtn = document.getElementById('sendBtn');
     const saveBtn = document.getElementById('saveBtn');
 
-    // Enviar DB: apenas LIDER / GESTAO
+    // Enviar DB: apenas LIDER / GESTAO / ADM
     if (sendBtn) {
-        if (perfil === 'LIDER' || perfil === 'GESTAO') {
+        if (perfil === 'LIDER' || perfil === 'GESTAO' || perfil === 'ADM') {
             sendBtn.classList.remove('hidden');
         } else {
             sendBtn.classList.add('hidden');
@@ -853,7 +838,45 @@ async function openSector(setor) {
         }
     }
 
+    if (perfil === 'EDITOR') {
+        await loadRejectedDrafts(currentSector.id);
+    } else {
+        const rejectedSection = document.getElementById('rejectedSection');
+        if (rejectedSection) rejectedSection.classList.add('hidden');
+    }
+
     showIndicatorsScreen();
+}
+
+async function loadRejectedDrafts(setorId) {
+    const rejectedSection = document.getElementById('rejectedSection');
+    const rejectedBody = document.getElementById('rejectedBody');
+    if (!rejectedSection || !rejectedBody) return;
+
+    try {
+        const data = await apiGet(`/api/drafts/rejected?setorId=${encodeURIComponent(setorId)}`);
+        const items = Array.isArray(data) ? data : [];
+        rejectedBody.innerHTML = '';
+
+        if (!items.length) {
+            rejectedSection.classList.add('hidden');
+            return;
+        }
+
+        items.forEach(i => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${i.INDICADOR_NOME ?? ''}</td>
+                <td>${i.ZDR_REJEITADO_MOTIVO ?? ''}</td>
+                <td>${i.ZDR_REJEITADO_EM ?? ''}</td>
+            `;
+            rejectedBody.appendChild(tr);
+        });
+
+        rejectedSection.classList.remove('hidden');
+    } catch (err) {
+        rejectedSection.classList.add('hidden');
+    }
 }
 
 /**
@@ -888,11 +911,6 @@ function updateIndicatorDate(id, value) {
     }
 }
 
-
-/* =========================================================
-   10) SALVAR / ENVIAR (API) + HISTÓRICO UI
-   ========================================================= */
-
 /**
  * Salva rascunho no banco:
  * - POST /api/drafts
@@ -902,6 +920,12 @@ async function handleSave() {
     const periodo = getPeriodoAtualOuDoFormulario();
     const valores = buildValoresPayload();
     const saveBtn = document.getElementById('saveBtn');
+    const perfil = getUserPerfil(currentUser);
+
+    if (perfil === 'LEITOR') {
+        alert('Seu perfil nao pode salvar indicadores.');
+        return;
+    }
 
     const body = {
         setorId: currentSector.id,
@@ -922,7 +946,7 @@ async function handleSave() {
             setor: currentSector.nome,
             timestamp: new Date().toLocaleString('pt-BR'),
             indicadores: currentSector.indicadores,
-            status: 'Rascunho (DB)'
+            status: perfil === 'EDITOR' ? 'Aguardando aprovacao' : 'Rascunho (DB)'
         });
         updateHistoryDisplay();
         alert('Rascunho salvo no banco com sucesso!');
@@ -937,8 +961,8 @@ async function handleSendDB() {
     const perfil = getUserPerfil(currentUser);
     const sendBtn = document.getElementById('sendBtn');
 
-    if (perfil !== 'LIDER' && perfil !== 'GESTAO') {
-        alert('Apenas LIDER ou GESTAO podem enviar valores definitivos para o banco. Use "Salvar" para rascunho.');
+    if (perfil !== 'LIDER' && perfil !== 'GESTAO' && perfil !== 'ADM') {
+        alert('Apenas LIDER, GESTAO ou ADM podem enviar valores definitivos para o banco. Use "Salvar" para rascunho.');
         return;
     }
 
@@ -1030,11 +1054,6 @@ function updateHistoryDisplay() {
         });
     }
 }
-
-
-/* =========================================================
-   11) ADMIN - FUNÇÕES AUXILIARES (SETOR / USER / SELECTS)
-   ========================================================= */
 
 /**
  * Compat: pega id do setor independente do nome do campo.
@@ -1133,10 +1152,110 @@ function setSelectValue(selectEl, value) {
     selectEl.value = val;
 }
 
+async function loadManagerData() {
+    try {
+        const [funcionariosData, pendentesData] = await Promise.all([
+            apiGet('/api/gestor/funcionarios'),
+            apiGet('/api/drafts/pending')
+        ]);
 
-/* =========================================================
-   12) ADMIN - LOAD (SETOR/USERS/INDICADORES) + RENDER
-   ========================================================= */
+        renderManagerFuncionarios(Array.isArray(funcionariosData) ? funcionariosData : []);
+        renderManagerIndicadores(Array.isArray(pendentesData) ? pendentesData : []);
+    } catch (err) {
+        alert(`Erro ao carregar painel gestor: ${err.message}`);
+    }
+}
+
+function renderManagerFuncionarios(items) {
+    const tbody = document.getElementById('managerFuncionariosBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!items.length) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="3">Nenhum funcionario encontrado</td>';
+        tbody.appendChild(tr);
+        return;
+    }
+
+    items.forEach(u => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${u.ZFU_NOME ?? ''}</td>
+            <td>${u.ZFU_EMAIL ?? ''}</td>
+            <td>${u.ZFU_NIVEL ?? ''}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderManagerIndicadores(items) {
+    const tbody = document.getElementById('managerIndicadoresBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!items.length) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="7">Nenhum indicador pendente</td>';
+        tbody.appendChild(tr);
+        return;
+    }
+
+    items.forEach(i => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${i.INDICADOR_NOME ?? ''}</td>
+            <td>${i.SETOR_NOME ?? ''}</td>
+            <td>${i.FUNCIONARIO_NOME ?? ''}</td>
+            <td>${i.ZDR_PERIODO ?? ''}</td>
+            <td>${i.ZDR_VALOR ?? ''}</td>
+            <td>${i.ZDR_STATUS ?? ''}</td>
+            <td>
+                <button class="btn btn-save admin-btn-row" data-gestor-action="approve" data-draft-id="${i.ZDR_ID}">Aprovar</button>
+                <button class="btn btn-send admin-btn-row" data-gestor-action="reject" data-draft-id="${i.ZDR_ID}">Recusar</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('button[data-gestor-action]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-draft-id');
+            const action = btn.getAttribute('data-gestor-action');
+            if (action === 'approve') {
+                await approveDraft(id);
+            } else {
+                await rejectDraft(id);
+            }
+        });
+    });
+}
+
+async function approveDraft(draftId) {
+    try {
+        await apiPost(`/api/drafts/${draftId}/approve`, {});
+        await loadManagerData();
+        alert('Indicador aprovado');
+    } catch (err) {
+        alert(`Erro ao aprovar: ${err.message}`);
+    }
+}
+
+async function rejectDraft(draftId) {
+    const motivo = prompt('Motivo da recusa?');
+    if (motivo === null) return;
+    if (!motivo.trim()) {
+        alert('Informe o motivo');
+        return;
+    }
+    try {
+        await apiPost(`/api/drafts/${draftId}/reject`, { motivo: motivo.trim() });
+        await loadManagerData();
+        alert('Indicador recusado');
+    } catch (err) {
+        alert(`Erro ao recusar: ${err.message}`);
+    }
+}
 
 async function loadAdminData() {
     try {
@@ -1291,11 +1410,6 @@ function selectAdminUser(userId) {
 
     document.getElementById('adminUserAtivoEdit').checked = !!user.ZFU_ATIVO;
 }
-
-
-/* =========================================================
-   13) ADMIN - CRUD: USERS / SETORES / INDICADORES
-   ========================================================= */
 
 async function adminCreateUser() {
     try {
@@ -1607,11 +1721,6 @@ async function adminUpdateIndicador() {
         alert(`Erro ao atualizar indicador: ${err.message}`);
     }
 }
-
-
-/* =========================================================
-   14) INICIALIZAÇÃO
-   ========================================================= */
 
 /**
  * Ao carregar a página:

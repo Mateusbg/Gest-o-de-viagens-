@@ -48,7 +48,8 @@ from __future__ import annotations
 from dotenv import load_dotenv
 from pathlib import Path
 _ROOT = Path(__file__).resolve().parent
-load_dotenv(dotenv_path=_ROOT / ".env", override=False)
+_ENV = _ROOT.parent / ".env"
+load_dotenv(dotenv_path=_ENV, override=False)
 
 # =========================
 # 1) IMPORTS
@@ -316,14 +317,6 @@ def _can_user_fill_indicator(user: dict, indicador_setor_id: int, responsavel_id
     nivel = int(user.get("nivel") or 1)
     user_id = int(user.get("id"))
     user_setor_id = user.get("setor_id")
-
-def _log_action(user: dict | None, action: str, details: str | None = None):
-    who = f"user_id={user.get('id')}" if user else "user_id=none"
-    when = datetime.utcnow().isoformat()
-    extra = f" details={details}" if details else ""
-    print(f"[AUDIT] {when} action={action} {who}{extra}")
-
-
     if nivel >= 5:
         return True
     if nivel >= 4:
@@ -339,6 +332,12 @@ def _log_action(user: dict | None, action: str, details: str | None = None):
             return False
         return responsavel_id is None or int(responsavel_id) == user_id
     return False
+
+def _log_action(user: dict | None, action: str, details: str | None = None):
+    who = f"user_id={user.get('id')}" if user else "user_id=none"
+    when = datetime.utcnow().isoformat()
+    extra = f" details={details}" if details else ""
+    print(f"[AUDIT] {when} action={action} {who}{extra}")
 
 def ensure_seed_admin():
     """
@@ -601,6 +600,26 @@ def api_setores():
         rows = cur.fetchall()
         return jsonify(_rows_to_dicts(cur, rows))
 
+@app.route("/api/gestor/funcionarios", methods=["GET"])
+@require_level(3)
+def api_gestor_funcionarios():
+    """Lista funcionarios do setor do lider (nivel 3+)."""
+    user = request.current_user
+    if not user.get("setor_id"):
+        return jsonify([])
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT ZFU_ID, ZFU_NOME, ZFU_EMAIL, ZFU_SETOR_ID, ZFU_NIVEL, ZFU_ATIVO "
+                "FROM ZFU WHERE ZFU_SETOR_ID = ? AND ZFU_ATIVO = 1 ORDER BY ZFU_NOME",
+                (int(user["setor_id"]),)
+            )
+            rows = cur.fetchall()
+            return jsonify(_rows_to_dicts(cur, rows))
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 @app.route("/api/setores", methods=["POST"])
 @require_level(4)
 def api_create_setor():
@@ -856,6 +875,8 @@ def api_salvar_valores_definitivos():
                 setor_id=setor_id_db
             )
 
+            status = "PENDING" if int(user.get("nivel") or 1) == 2 else "DRAFT"
+
             for item in valores:
                 if not isinstance(item, dict):
                     continue
@@ -880,8 +901,9 @@ def api_salvar_valores_definitivos():
                 ind_setor_id, resp_id = _get_indicator_access(cur, ind_id_db)
                 if ind_setor_id is None:
                     return jsonify({"ok": False, "error": "Indicador nao encontrado"}), 400
-                if not _can_user_fill_indicator(user, ind_setor_id, resp_id):
-                    return jsonify({"ok": False, "error": "Sem permissao para preencher este indicador"}), 403
+                if int(user.get("nivel") or 1) < 4:
+                    if not _can_user_fill_indicator(user, ind_setor_id, resp_id):
+                        return jsonify({"ok": False, "error": "Sem permissao para preencher este indicador"}), 403
 
                 cur.execute("""
                     MERGE ZIV AS tgt
@@ -993,16 +1015,17 @@ def api_salvar_draft():
                 ind_setor_id, resp_id = _get_indicator_access(cur, ind_id_db)
                 if ind_setor_id is None:
                     return jsonify({"ok": False, "error": "Indicador nao encontrado"}), 400
-                if not _can_user_fill_indicator(user, ind_setor_id, resp_id):
-                    return jsonify({"ok": False, "error": "Sem permissao para preencher este indicador"}), 403
+                if int(user.get("nivel") or 1) < 4:
+                    if not _can_user_fill_indicator(user, ind_setor_id, resp_id):
+                        return jsonify({"ok": False, "error": "Sem permissao para preencher este indicador"}), 403
 
                 cur.execute(
                     """
                     INSERT INTO ZDR (ZDR_INDICADOR_ID, ZDR_SETOR_ID, ZDR_FUNCIONARIO_ID, ZDR_PERIODO, ZDR_VALOR, ZDR_STATUS, ZDR_CRIADO_EM)
-                    VALUES (?, ?, ?, ?, ?, 'DRAFT', ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                     (ind_id_db, setor_id_db, funcionario_id_db, periodo_date,
-                     str(valor) if valor is not None else None, now)
+                     str(valor) if valor is not None else None, status, now)
                 )
 
             conn.commit()
@@ -1056,11 +1079,12 @@ def api_listar_drafts():
                 else:
                     where.append("1=0")
 
-        sql = f"""
+    sql = f"""
             SELECT
                 ZDR_ID, ZDR_INDICADOR_ID, ZDR_SETOR_ID, ZDR_FUNCIONARIO_ID,
                 ZDR_PERIODO, ZDR_VALOR, ZDR_STATUS,
-                ZDR_CRIADO_EM, ZDR_ENVIADO_EM, ZDR_APROVADO_EM, ZDR_APROVADO_POR
+                ZDR_CRIADO_EM, ZDR_ENVIADO_EM, ZDR_APROVADO_EM, ZDR_APROVADO_POR,
+                ZDR_REJEITADO_EM, ZDR_REJEITADO_POR, ZDR_REJEITADO_MOTIVO
             FROM ZDR
             WHERE {' AND '.join(where)}
             ORDER BY ZDR_CRIADO_EM DESC
@@ -1068,6 +1092,88 @@ def api_listar_drafts():
         cur.execute(sql, params)
         rows = cur.fetchall()
         return jsonify(_rows_to_dicts(cur, rows))
+
+@app.route("/api/drafts/rejected", methods=["GET"])
+@require_level(2)
+def api_listar_drafts_rejeitados():
+    user = request.current_user
+    setor_id = request.args.get("setorId") or request.args.get("setor_id")
+
+    where = ["d.ZDR_STATUS = 'REJECTED'", "d.ZDR_FUNCIONARIO_ID = ?"]
+    params = [int(user["id"])]
+
+    if setor_id:
+        where.append("d.ZDR_SETOR_ID = ?")
+        params.append(int(setor_id))
+
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"""
+                SELECT
+                    d.ZDR_ID,
+                    d.ZDR_INDICADOR_ID,
+                    i.ZIN_NOME AS INDICADOR_NOME,
+                    d.ZDR_SETOR_ID,
+                    d.ZDR_PERIODO,
+                    d.ZDR_REJEITADO_MOTIVO,
+                    d.ZDR_REJEITADO_EM
+                FROM ZDR d
+                INNER JOIN ZIN i ON i.ZIN_ID = d.ZDR_INDICADOR_ID
+                WHERE {' AND '.join(where)}
+                ORDER BY d.ZDR_REJEITADO_EM DESC
+                """,
+                params
+            )
+            rows = cur.fetchall()
+            return jsonify(_rows_to_dicts(cur, rows))
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/drafts/pending", methods=["GET"])
+@require_level(3)
+def api_listar_drafts_pendentes():
+    """Lista drafts pendentes de aprovacao do setor do lider."""
+    user = request.current_user
+    setor_id = request.args.get("setorId") or request.args.get("setor_id")
+
+    if not _is_gestao_or_admin(user):
+        setor_id = user.get("setor_id")
+
+    if not setor_id:
+        return jsonify({"ok": False, "error": "Informe setor_id"}), 400
+
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT
+                    d.ZDR_ID,
+                    d.ZDR_INDICADOR_ID,
+                    i.ZIN_NOME AS INDICADOR_NOME,
+                    d.ZDR_SETOR_ID,
+                    s.ZSE_NOME AS SETOR_NOME,
+                    d.ZDR_FUNCIONARIO_ID,
+                    f.ZFU_NOME AS FUNCIONARIO_NOME,
+                    d.ZDR_PERIODO,
+                    d.ZDR_VALOR,
+                    d.ZDR_STATUS,
+                    d.ZDR_CRIADO_EM
+                FROM ZDR d
+                INNER JOIN ZIN i ON i.ZIN_ID = d.ZDR_INDICADOR_ID
+                INNER JOIN ZSE s ON s.ZSE_ID = d.ZDR_SETOR_ID
+                LEFT JOIN ZFU f ON f.ZFU_ID = d.ZDR_FUNCIONARIO_ID
+                WHERE d.ZDR_STATUS = 'PENDING' AND d.ZDR_SETOR_ID = ?
+                ORDER BY d.ZDR_CRIADO_EM DESC
+                """,
+                (int(setor_id),)
+            )
+            rows = cur.fetchall()
+            return jsonify(_rows_to_dicts(cur, rows))
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @app.route("/api/drafts/submit", methods=["POST"])
 @require_level(2)
@@ -1182,6 +1288,97 @@ def api_approve_drafts():
             conn.commit()
             _log_action(request.current_user, 'drafts_aprovar', f"setor_id={setor_id} periodo={p} qtd={len(items)}")
             return jsonify({"ok": True, "aprovados": len(items)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/drafts/<int:draft_id>/approve", methods=["POST"])
+@require_level(3)
+def api_approve_draft_item(draft_id: int):
+    user = request.current_user
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT ZDR_INDICADOR_ID, ZDR_SETOR_ID, ZDR_FUNCIONARIO_ID, ZDR_PERIODO, ZDR_VALOR, ZDR_STATUS "
+                "FROM ZDR WHERE ZDR_ID = ?",
+                (int(draft_id),)
+            )
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"ok": False, "error": "Draft nao encontrado"}), 404
+
+            ind_id, setor_id, func_id, periodo, valor, status = row
+            if status != "PENDING":
+                return jsonify({"ok": False, "error": "Draft nao esta pendente"}), 400
+
+            _enforce_setor_access(user, int(setor_id))
+
+            now = datetime.utcnow()
+            cur.execute("""
+                MERGE ZIV AS tgt
+                USING (SELECT ? AS ZIV_INDICADOR_ID, ? AS ZIV_SETOR_ID, ? AS ZIV_PERIODO) AS src
+                ON tgt.ZIV_INDICADOR_ID = src.ZIV_INDICADOR_ID AND tgt.ZIV_SETOR_ID = src.ZIV_SETOR_ID AND tgt.ZIV_PERIODO = src.ZIV_PERIODO
+                WHEN MATCHED THEN
+                    UPDATE SET ZIV_VALOR = ?, ZIV_ATUALIZADO_EM = ?, ZIV_FUNCIONARIO_ID = ?
+                WHEN NOT MATCHED THEN
+                    INSERT (ZIV_INDICADOR_ID, ZIV_SETOR_ID, ZIV_FUNCIONARIO_ID, ZIV_PERIODO, ZIV_VALOR, ZIV_CRIADO_EM, ZIV_ATUALIZADO_EM)
+                    VALUES (?, ?, ?, ?, ?, ?, ?);
+            """,
+            ind_id, setor_id, periodo,
+            valor, now, func_id,
+            ind_id, setor_id, func_id, periodo, valor, now, now)
+
+            cur.execute(
+                "UPDATE ZDR SET ZDR_STATUS='APPROVED', ZDR_APROVADO_EM = SYSUTCDATETIME(), ZDR_APROVADO_POR = ? "
+                "WHERE ZDR_ID = ?",
+                (int(user["id"]), int(draft_id))
+            )
+
+            conn.commit()
+            _log_action(request.current_user, 'draft_aprovar', f"draft_id={draft_id}")
+            return jsonify({"ok": True})
+    except PermissionError as e:
+        return jsonify({"ok": False, "error": str(e)}), 403
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/drafts/<int:draft_id>/reject", methods=["POST"])
+@require_level(3)
+def api_reject_draft_item(draft_id: int):
+    user = request.current_user
+    payload = request.get_json(force=True, silent=True) or {}
+    motivo = (payload.get("motivo") or "").strip()
+
+    if not motivo:
+        return jsonify({"ok": False, "error": "Informe o motivo"}), 400
+
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT ZDR_SETOR_ID, ZDR_STATUS FROM ZDR WHERE ZDR_ID = ?",
+                (int(draft_id),)
+            )
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"ok": False, "error": "Draft nao encontrado"}), 404
+
+            setor_id, status = row
+            if status != "PENDING":
+                return jsonify({"ok": False, "error": "Draft nao esta pendente"}), 400
+
+            _enforce_setor_access(user, int(setor_id))
+
+            cur.execute(
+                "UPDATE ZDR SET ZDR_STATUS='REJECTED', ZDR_REJEITADO_EM = SYSUTCDATETIME(), "
+                "ZDR_REJEITADO_POR = ?, ZDR_REJEITADO_MOTIVO = ? WHERE ZDR_ID = ?",
+                (int(user["id"]), motivo, int(draft_id))
+            )
+            conn.commit()
+            _log_action(request.current_user, 'draft_rejeitar', f"draft_id={draft_id}")
+            return jsonify({"ok": True})
+    except PermissionError as e:
+        return jsonify({"ok": False, "error": str(e)}), 403
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
