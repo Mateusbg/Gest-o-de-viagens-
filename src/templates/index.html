@@ -284,9 +284,14 @@
             <div class="admin-section hidden" id="adminIndicadoresSection">
                 <h2>Indicadores</h2>
 
+                <div class="admin-subnav">
+                    <button class="btn btn-save admin-tab" onclick="showIndicatorsSection('createIndicador')">Criar indicador</button>
+                    <button class="btn btn-send admin-tab" onclick="showIndicatorsSection('editIndicador')">Editar indicador</button>
+                </div>
+
                 <div class="admin-grid">
                     
-                    <div class="admin-card">
+                    <div class="admin-card" id="adminCreateIndicadorCard">
                         <h3>Criar indicador</h3>
 
                         <div class="form-group">
@@ -305,13 +310,9 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Tipo</label>
-                            <input id="adminIndicadorTipo" type="text" placeholder="number/date">
-                        </div>
-
-                        <div class="form-group">
                             <label>Unidade</label>
-                            <input id="adminIndicadorUnidade" type="text" placeholder="unidade">
+                            <select id="adminIndicadorUnidade"></select>
+                            <input id="adminIndicadorUnidadeCustom" type="text" class="hidden" placeholder="Digite a nova unidade">
                         </div>
 
                         <div class="form-group">
@@ -327,7 +328,7 @@
                         <button class="btn btn-save" onclick="adminCreateIndicador()">Criar indicador</button>
                     </div>
 
-                    <div class="admin-card">
+                    <div class="admin-card hidden" id="adminEditIndicadorCard">
                         <h3>Editar indicador</h3>
 
                         <div class="form-group">
@@ -346,13 +347,9 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Tipo</label>
-                            <input id="adminIndicadorTipoEdit" type="text">
-                        </div>
-
-                        <div class="form-group">
                             <label>Unidade</label>
-                            <input id="adminIndicadorUnidadeEdit" type="text">
+                            <select id="adminIndicadorUnidadeEdit"></select>
+                            <input id="adminIndicadorUnidadeCustomEdit" type="text" class="hidden" placeholder="Digite a nova unidade">
                         </div>
 
                         <div class="form-group">
@@ -475,12 +472,17 @@
         </header>
 
         <div class="indicators-content">
-            
-            <div class="indicators-form" id="indicatorsForm"></div>
+            <div class="indicators-layout">
+                <div class="indicators-main">
+                    <div class="indicators-form" id="indicatorsForm"></div>
 
-            <div class="action-buttons">
-                <button class="btn btn-save" id="saveBtn" onclick="handleSave()">💾 Salvar</button>
-                <button class="btn btn-send" id="sendBtn" onclick="handleSendDB()">📤 Enviar para DB</button>
+                    <div class="action-buttons">
+                        <button class="btn btn-save" id="saveBtn" onclick="handleSave()">💾 Salvar</button>
+                        <button class="btn btn-send" id="sendBtn" onclick="handleSendDB()">📤 Enviar para DB</button>
+                    </div>
+                </div>
+
+                <aside class="period-panel hidden" id="periodPanel"></aside>
             </div>
 
             <div class="history-section hidden" id="rejectedSection">

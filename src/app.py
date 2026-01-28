@@ -1827,7 +1827,7 @@ def api_create_indicador():
     setor_id = int(payload.get("setor_id") or payload.get("setorId") or 0)
     codigo = (payload.get("codigo") or "").strip()
     nome = (payload.get("nome") or "").strip()
-    tipo = payload.get("tipo")
+    tipo = 'text'
     unidade = payload.get("unidade")
     meta = payload.get("meta")
     responsavel_id = payload.get("responsavel_id") or payload.get("responsavelId")
@@ -1868,7 +1868,6 @@ def api_update_indicador(indicador_id: int):
 
     for col, key in [
         ("ZIN_NOME", "nome"),
-        ("ZIN_TIPO", "tipo"),
         ("ZIN_UNIDADE", "unidade"),
         ("ZIN_META", "meta"),
         ("ZIN_ATIVO", "ativo"),

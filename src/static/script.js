@@ -127,7 +127,7 @@ function normalizeIndicadorFromApi(i) {
         id: i?.ZIN_ID ?? i?.id ?? null,
         codigo: i?.ZIN_CODIGO ?? i?.codigo ?? null,
         nome: i?.ZIN_NOME ?? i?.nome ?? '',
-        tipo: i?.ZIN_TIPO ?? i?.tipo ?? null,
+        tipo: 'text',
         unidade: i?.ZIN_UNIDADE ?? i?.unidade ?? null,
         meta: i?.ZIN_META ?? i?.meta ?? null,
         responsavel_id: i?.ZIN_RESPONSAVEL_ID ?? i?.responsavel_id ?? i?.responsavelId ?? null,
@@ -186,9 +186,7 @@ function setIndicadorCodigoInput(value) {
  * Aceita tipo='date' ou unidade='date'.
  */
 function isDateIndicator(ind) {
-    const tipo = (ind?.tipo || '').toString().toLowerCase();
-    const unidade = (ind?.unidade || '').toString().toLowerCase();
-    return tipo === 'date' || unidade === 'date';
+    return false;
 }
 
 /**
@@ -197,10 +195,9 @@ function isDateIndicator(ind) {
  * - Senão, usa mês/ano atual.
  */
 function getPeriodoAtualOuDoFormulario() {
-    const dateInd = currentSector?.indicadores?.find(i => isDateIndicator(i));
-
-    if (dateInd?.valor && typeof dateInd.valor === 'string') {
-        const raw = dateInd.valor.trim();
+    const rawPeriodo = currentSector?.periodo;
+    if (rawPeriodo && typeof rawPeriodo === 'string') {
+        const raw = rawPeriodo.trim();
         if (raw.includes('/')) {
             if (validarData(raw)) {
                 return converterDataParaISO(raw);
@@ -211,10 +208,7 @@ function getPeriodoAtualOuDoFormulario() {
         }
     }
 
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    return `${y}-${m}`;
+    return '';
 }
 
 /**
@@ -222,13 +216,12 @@ function getPeriodoAtualOuDoFormulario() {
  */
 function buildValoresPayload() {
     return (currentSector?.indicadores || [])
-        .filter(i => !isDateIndicator(i))
         .filter(i => !i.read_only)
         .map(i => ({
             indicadorId: i.id,
             indicadorCodigo: i.codigo ?? i.id,
             indicadorNome: i.nome,
-            tipo: i.tipo || (i.unidade === 'date' ? 'date' : 'number'),
+            tipo: 'text',
             unidade: i.unidade || null,
             meta: i.meta ?? null,
             valor: i.valor ?? null
@@ -577,6 +570,7 @@ function showAdminScreen() {
 
     showAdminSection('users');
     showUsersSection('createUser');
+    showIndicatorsSection('createIndicador');
     loadAdminData();
 }
 
@@ -642,6 +636,22 @@ function showAdminSection(section) {
         indicadores.classList.add('hidden');
         users.classList.remove('hidden');
     }
+}
+
+function showIndicatorsSection(section) {
+    const createCard = document.getElementById('adminCreateIndicadorCard');
+    const editCard = document.getElementById('adminEditIndicadorCard');
+    if (!createCard || !editCard) return;
+
+    createCard.classList.add('hidden');
+    editCard.classList.add('hidden');
+
+    if (section === 'editIndicador') {
+        editCard.classList.remove('hidden');
+        return;
+    }
+
+    createCard.classList.remove('hidden');
 }
 
 /**
@@ -788,19 +798,79 @@ async function openSector(setor) {
         currentSector = {
             id: setor.id,
             nome: setor.nome,
-            indicadores
+            indicadores,
+            periodo: ''
         };
 
         document.getElementById('sectorTitle').textContent = setor.nome;
 
         const form = document.getElementById('indicatorsForm');
+        const indicatorsContent = document.querySelector('.indicators-content');
+        let layout = document.querySelector('.indicators-layout');
+        let periodPanel = document.getElementById('periodPanel');
+
+        // Fallback: monta layout lateral caso o HTML antigo ainda esteja em uso
+        if (!layout && indicatorsContent) {
+            layout = document.createElement('div');
+            layout.className = 'indicators-layout';
+
+            const main = document.createElement('div');
+            main.className = 'indicators-main';
+
+            if (form) main.appendChild(form);
+            const actions = document.querySelector('.action-buttons');
+            if (actions) main.appendChild(actions);
+
+            layout.appendChild(main);
+            indicatorsContent.insertBefore(layout, indicatorsContent.firstChild);
+        }
+
+        if (!periodPanel && layout) {
+            periodPanel = document.createElement('aside');
+            periodPanel.id = 'periodPanel';
+            periodPanel.className = 'period-panel hidden';
+            layout.appendChild(periodPanel);
+        }
         form.innerHTML = '';
+        if (periodPanel) periodPanel.classList.add('hidden');
+
+        const dateIndicator = currentSector.indicadores.find(i => isDateIndicator(i));
+        if (dateIndicator?.valor) {
+            currentSector.periodo = dateIndicator.valor;
+        }
+
+        if (!currentSector.periodo) {
+            const today = new Date();
+            const y = today.getFullYear();
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const d = String(today.getDate()).padStart(2, '0');
+            currentSector.periodo = `${y}-${m}-${d}`;
+        }
+
+        if (periodPanel) {
+            const valueISO = currentSector.periodo || '';
+            periodPanel.innerHTML = `
+                <h3>Periodo</h3>
+                <div class="period-label">${dateIndicator?.nome ?? 'Data do periodo'}</div>
+                <input
+                    type="date"
+                    class="indicator-input"
+                    data-id="${dateIndicator?.id ?? ''}"
+                    value="${valueISO}"
+                    onchange="updateIndicatorDate(${dateIndicator?.id ?? 0}, this.value)"
+                    lang="pt-BR"
+                >
+                <div class="period-help">Selecione a data (DD/MM/AAAA)</div>
+            `;
+            periodPanel.classList.remove('hidden');
+        }
 
         currentSector.indicadores.forEach(indicador => {
+            if (dateIndicator && Number(indicador.id) === Number(dateIndicator.id)) return;
             const div = document.createElement('div');
             div.className = 'indicator-item';
 
-            const isDateField = isDateIndicator(indicador);
+            const isDateField = false;
 
             // readOnly se:
             // - indicador marcado read_only
@@ -810,40 +880,21 @@ async function openSector(setor) {
 
             let inputHtml = '';
 
-            // Campo de data com calendário (DD/MM/AAAA no locale pt-BR)
-            if (isDateField) {
-                const valorISO = indicador.valor ? indicador.valor : '';
-                inputHtml = `
-                    <input
-                        type="date"
-                        class="indicator-input"
-                        data-id="${indicador.id}"
-                        value="${valorISO}"
-                        onchange="updateIndicatorDate(${indicador.id}, this.value)"
-                        lang="pt-BR"
-                        ${readonlyAttr}
-                    >
-                `;
-            } else {
-                // Campo numérico
-                inputHtml = `
-                    <input
-                        type="number"
-                        step="0.01"
-                        placeholder="Digite o valor"
-                        class="indicator-input"
-                        data-id="${indicador.id}"
-                        value="${indicador.valor ?? ''}"
-                        onchange="updateIndicator(${indicador.id}, this.value)"
-                        ${readonlyAttr}
-                    >
-                `;
-            }
+            // Campo de texto (todos indicadores agora são texto)
+            inputHtml = `
+                <input
+                    type="text"
+                    placeholder="Digite o valor"
+                    class="indicator-input"
+                    data-id="${indicador.id}"
+                    value="${indicador.valor ?? ''}"
+                    onchange="updateIndicator(${indicador.id}, this.value)"
+                    ${readonlyAttr}
+                >
+            `;
 
-            // Meta exibida somente para indicadores numéricos
-            const metaHtml = isDateField
-                ? '<div class="indicator-meta">Selecione a data (DD/MM/AAAA)</div>'
-                : `<div class="indicator-meta">Meta: ${indicador.meta ?? '-'} ${indicador.unidade ?? ''}</div>`;
+            const unidadeText = indicador.unidade ? ` | Unidade: ${indicador.unidade}` : '';
+            const metaHtml = `<div class="indicator-meta">Meta: ${indicador.meta ?? '-'}${unidadeText}</div>`;
 
             div.innerHTML = `
                 <label class="indicator-label">${indicador.nome}</label>
@@ -940,10 +991,10 @@ function updateIndicator(id, value) {
  */
 function updateIndicatorDate(id, value) {
     const ind = currentSector.indicadores.find(i => Number(i.id) === Number(id));
-    if (!ind) return;
 
     if (!value) {
-        ind.valor = '';
+        if (ind) ind.valor = '';
+        currentSector.periodo = '';
         return;
     }
 
@@ -953,11 +1004,14 @@ function updateIndicatorDate(id, value) {
             alert('Data inválida! Use o formato DD/MM/AAAA');
             return;
         }
-        ind.valor = converterDataParaISO(raw);
+        const iso = converterDataParaISO(raw);
+        if (ind) ind.valor = iso;
+        currentSector.periodo = iso;
         return;
     }
     if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-        ind.valor = raw;
+        if (ind) ind.valor = raw;
+        currentSector.periodo = raw;
         return;
     }
     alert('Data inválida!');
@@ -976,6 +1030,11 @@ async function handleSave() {
 
     if (perfil === 'LEITOR') {
         alert('Seu perfil nao pode salvar indicadores.');
+        return;
+    }
+
+    if (!periodo) {
+        alert('Selecione a data do periodo antes de salvar.');
         return;
     }
 
@@ -1032,6 +1091,10 @@ async function handleSendDB() {
 
     const periodo = getPeriodoAtualOuDoFormulario();
     const valores = buildValoresPayload();
+    if (!periodo) {
+        alert('Selecione a data do periodo antes de enviar.');
+        return;
+    }
 
     const body = {
         setorId: currentSector.id,
@@ -1836,11 +1899,84 @@ async function refreshIndicadorCodigoForSetor(setorId) {
     setIndicadorCodigoInput(getNextIndicadorCodigo(items));
 }
 
+function fillUnidadeSelect(selectEl, indicadores, allowEmpty = true) {
+    if (!selectEl) return;
+    const valores = new Set();
+    (indicadores || []).forEach(i => {
+        const v = (i?.ZIN_UNIDADE ?? i?.unidade ?? '').toString().trim();
+        if (v) valores.add(v);
+    });
+
+    const options = [];
+    if (allowEmpty) options.push({ value: '', label: '-- selecione --' });
+    Array.from(valores).sort((a, b) => a.localeCompare(b)).forEach(v => {
+        options.push({ value: v, label: v });
+    });
+    options.push({ value: '__new__', label: 'Outra (digitar)' });
+
+    selectEl.innerHTML = '';
+    options.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        selectEl.appendChild(option);
+    });
+}
+
+function setupUnidadeSelect(selectId, inputId) {
+    const selectEl = document.getElementById(selectId);
+    const inputEl = document.getElementById(inputId);
+    if (!selectEl || !inputEl) return;
+    if (selectEl.dataset.bound === '1') return;
+    selectEl.dataset.bound = '1';
+
+    const toggle = () => {
+        const isNew = selectEl.value === '__new__';
+        inputEl.classList.toggle('hidden', !isNew);
+        if (!isNew) inputEl.value = '';
+    };
+    selectEl.addEventListener('change', toggle);
+    toggle();
+}
+
+function getUnidadeValue(selectId, inputId) {
+    const selectEl = document.getElementById(selectId);
+    const inputEl = document.getElementById(inputId);
+    if (!selectEl) return '';
+    if (selectEl.value === '__new__') {
+        return (inputEl?.value || '').trim();
+    }
+    return (selectEl.value || '').trim();
+}
+
+function setUnidadeValue(selectId, inputId, value) {
+    const selectEl = document.getElementById(selectId);
+    const inputEl = document.getElementById(inputId);
+    if (!selectEl) return;
+    const v = (value || '').toString().trim();
+    const hasOption = Array.from(selectEl.options).some(o => o.value === v);
+    if (v && !hasOption) {
+        selectEl.value = '__new__';
+        if (inputEl) inputEl.value = v;
+    } else {
+        selectEl.value = v || '';
+        if (inputEl) inputEl.value = '';
+    }
+    if (inputEl) {
+        inputEl.classList.toggle('hidden', selectEl.value !== '__new__');
+    }
+}
+
 function renderAdminIndicadores() {
     const tbody = document.getElementById('adminIndicadoresBody');
     if (!tbody) return;
 
     tbody.innerHTML = '';
+
+    fillUnidadeSelect(document.getElementById('adminIndicadorUnidade'), adminState.indicadores, true);
+    fillUnidadeSelect(document.getElementById('adminIndicadorUnidadeEdit'), adminState.indicadores, true);
+    setupUnidadeSelect('adminIndicadorUnidade', 'adminIndicadorUnidadeCustom');
+    setupUnidadeSelect('adminIndicadorUnidadeEdit', 'adminIndicadorUnidadeCustomEdit');
 
     adminState.indicadores.forEach(i => {
         const tr = document.createElement('tr');
@@ -1873,8 +2009,7 @@ function selectAdminIndicador(indId) {
 
     document.getElementById('adminIndicadorId').value = indicador.ZIN_ID ?? '';
     document.getElementById('adminIndicadorNomeEdit').value = indicador.ZIN_NOME ?? '';
-    document.getElementById('adminIndicadorTipoEdit').value = indicador.ZIN_TIPO ?? '';
-    document.getElementById('adminIndicadorUnidadeEdit').value = indicador.ZIN_UNIDADE ?? '';
+    setUnidadeValue('adminIndicadorUnidadeEdit', 'adminIndicadorUnidadeCustomEdit', indicador.ZIN_UNIDADE ?? '');
     document.getElementById('adminIndicadorMetaEdit').value = indicador.ZIN_META ?? '';
 
     setSelectValue(document.getElementById('adminIndicadorResponsavelEdit'), indicador.ZIN_RESPONSAVEL_ID);
@@ -1886,9 +2021,7 @@ async function adminCreateIndicador() {
         const setorId = document.getElementById('adminIndicadorSetor').value;
         const codigo = document.getElementById('adminIndicadorCodigo').value.trim();
         const nome = document.getElementById('adminIndicadorNome').value.trim();
-
-        const tipo = document.getElementById('adminIndicadorTipo').value.trim() || null;
-        const unidade = document.getElementById('adminIndicadorUnidade').value.trim() || null;
+        const unidade = getUnidadeValue('adminIndicadorUnidade', 'adminIndicadorUnidadeCustom') || null;
 
         const metaVal = document.getElementById('adminIndicadorMeta').value;
         const meta = metaVal === '' ? null : Number(metaVal);
@@ -1898,6 +2031,10 @@ async function adminCreateIndicador() {
 
         if (!setorId || !codigo || !nome) {
             alert('Informe setor, codigo e nome');
+            return;
+        }
+        if (!unidade) {
+            alert('Informe a unidade');
             return;
         }
 
@@ -1911,7 +2048,6 @@ async function adminCreateIndicador() {
             setor_id: Number(setorId),
             codigo,
             nome,
-            tipo,
             unidade,
             meta,
             responsavel_id
@@ -1922,8 +2058,7 @@ async function adminCreateIndicador() {
         // Limpa form
         document.getElementById('adminIndicadorCodigo').value = '';
         document.getElementById('adminIndicadorNome').value = '';
-        document.getElementById('adminIndicadorTipo').value = '';
-        document.getElementById('adminIndicadorUnidade').value = '';
+        setUnidadeValue('adminIndicadorUnidade', 'adminIndicadorUnidadeCustom', '');
         document.getElementById('adminIndicadorMeta').value = '';
         setSelectValue(document.getElementById('adminIndicadorResponsavel'), '');
 
@@ -1943,8 +2078,7 @@ async function adminUpdateIndicador() {
 
         const body = {
             nome: document.getElementById('adminIndicadorNomeEdit').value.trim(),
-            tipo: document.getElementById('adminIndicadorTipoEdit').value.trim() || null,
-            unidade: document.getElementById('adminIndicadorUnidadeEdit').value.trim() || null,
+            unidade: getUnidadeValue('adminIndicadorUnidadeEdit', 'adminIndicadorUnidadeCustomEdit') || null,
             meta: (() => {
                 const v = document.getElementById('adminIndicadorMetaEdit').value;
                 return v === '' ? null : Number(v);
@@ -1955,6 +2089,10 @@ async function adminUpdateIndicador() {
             })(),
             ativo: document.getElementById('adminIndicadorAtivoEdit').checked ? 1 : 0
         };
+        if (!body.unidade) {
+            alert('Informe a unidade');
+            return;
+        }
 
         const confirmed = await showConfirmModal({
             title: 'Confirmar alteracao',

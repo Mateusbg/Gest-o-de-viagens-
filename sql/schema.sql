@@ -330,3 +330,16 @@ INNER JOIN dbo.ZSE zse ON zse.ZSE_ID = ziv.ZIV_SETOR_ID
 INNER JOIN dbo.ZIN zin ON zin.ZIN_ID = ziv.ZIV_INDICADOR_ID
 LEFT JOIN dbo.ZFU zfu ON zfu.ZFU_ID = ziv.ZIV_FUNCIONARIO_ID;
 GO
+
+/* ============================================================
+   MIGRACAO - REMOVER ZIN_TIPO (TODOS INDICADORES = TEXTO)
+   ============================================================ */
+IF COL_LENGTH('dbo.ZIN', 'ZIN_TIPO') IS NOT NULL
+BEGIN
+    UPDATE dbo.ZIN
+    SET ZIN_TIPO = 'text'
+    WHERE ZIN_TIPO IS NULL OR LTRIM(RTRIM(ZIN_TIPO)) = '';
+
+    ALTER TABLE dbo.ZIN DROP COLUMN ZIN_TIPO;
+END;
+GO
