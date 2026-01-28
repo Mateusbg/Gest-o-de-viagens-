@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap');
 
 :root {
     --bg: #f4f4f4;
@@ -29,7 +29,7 @@
 }
 
 body {
-    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    font-family: 'Manrope', system-ui, -apple-system, sans-serif;
     background:
         radial-gradient(900px 500px at 10% -10%, rgba(27,79,213,0.08), transparent 60%),
         radial-gradient(800px 450px at 110% 0%, rgba(31,170,73,0.08), transparent 60%),
@@ -61,7 +61,7 @@ body {
 }
 
 .login-header h1 {
-    font-family: 'Fraunces', serif;
+    font-family: 'Sora', 'Manrope', system-ui, sans-serif;
     font-size: 32px;
     letter-spacing: 0.5px;
 }

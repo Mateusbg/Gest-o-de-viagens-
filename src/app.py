@@ -30,13 +30,13 @@ SQL_USER=SEU_USUARIO
 SQL_PASSWORD=SUA_SENHA
 SQL_TRUSTED_CONNECTION=false
 SQL_ENCRYPT=yes
-SQL_TRUST_CERT=yes
+SQL_TRUST_CERT=no
 
 JWT_SECRET=uma-chave-grande
 JWT_EXPIRES_HOURS=12
 
 SEED_ADMIN_EMAIL=admin@empresa.com
-SEED_ADMIN_PASSWORD=1234
+SEED_ADMIN_PASSWORD=defina_uma_senha_forte
 ===========================================================
 """
 
@@ -56,26 +56,60 @@ load_dotenv(dotenv_path=_ENV, override=False)
 # =========================
 import os
 import traceback
+import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import pyodbc
 import jwt
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect
 from flask_cors import CORS
 
 from functools import wraps
 from passlib.context import CryptContext
+from time import time
+import logging
+from logging.handlers import RotatingFileHandler
+from collections import defaultdict, deque
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # =========================
 # 2) APP / CONFIG
 # =========================
 app = Flask(__name__)
-CORS(app)
+
+# =========================
+# 2.1) SEGURANÇA / CONFIG
+# =========================
+APP_ENV = (os.getenv("APP_ENV") or os.getenv("FLASK_ENV") or "development").lower()
+DEBUG = (os.getenv("FLASK_DEBUG") or os.getenv("DEBUG") or "0").lower() in ("1", "true", "yes", "y")
+TRUST_PROXY_HEADERS = (os.getenv("TRUST_PROXY_HEADERS") or "false").lower() in ("1", "true", "yes", "y")
+FORCE_HTTPS = (os.getenv("FORCE_HTTPS") or "false").lower() in ("1", "true", "yes", "y")
+
+if TRUST_PROXY_HEADERS:
+    # Respeita X-Forwarded-Proto/Host quando atrás de proxy reverso (Nginx, etc.)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+# Limite de tamanho do payload (em MB)
+MAX_CONTENT_MB = int(os.getenv("MAX_CONTENT_LENGTH_MB") or "2")
+app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_MB * 1024 * 1024
+app.config["DEBUG"] = DEBUG
+
+# CORS (por padrão: desativado, same-origin)
+cors_origins = [o.strip() for o in (os.getenv("CORS_ORIGINS") or "").split(",") if o.strip()]
+if cors_origins:
+    CORS(app, resources={r"/api/*": {"origins": cors_origins}})
 
 # JWT
 JWT_SECRET = os.getenv("JWT_SECRET", "")
 JWT_EXPIRES_HOURS = int(os.getenv("JWT_EXPIRES_HOURS", "12"))
+JWT_ISSUER = (os.getenv("JWT_ISSUER") or "").strip()
+JWT_AUDIENCE = (os.getenv("JWT_AUDIENCE") or "").strip()
+JWT_MIN_SECRET_LEN = int(os.getenv("JWT_MIN_SECRET_LEN") or "32")
+
+# Password policy
+PASSWORD_MIN_LENGTH = int(os.getenv("PASSWORD_MIN_LENGTH") or "8")
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -87,6 +121,53 @@ ROLE_MAP = {
     4: "GESTAO",
     5: "ADM",
 }
+
+# Security toggles
+SECURE_HEADERS = (os.getenv("SECURE_HEADERS") or "true").lower() in ("1", "true", "yes", "y")
+ALLOW_PUBLIC_READS = (os.getenv("ALLOW_PUBLIC_READS") or "false").lower() in ("1", "true", "yes", "y")
+HSTS_MAX_AGE = int(os.getenv("HSTS_MAX_AGE") or "63072000")  # 2 anos
+CSP_POLICY = os.getenv("CSP_POLICY") or (
+    "default-src 'self'; "
+    "base-uri 'none'; "
+    "frame-ancestors 'none'; "
+    "form-action 'self'; "
+    "object-src 'none'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "font-src https://fonts.gstatic.com; "
+    "img-src 'self' data:; "
+    "connect-src 'self';"
+)
+
+PASSWORD_REQUIRE_COMPLEXITY = (os.getenv("PASSWORD_REQUIRE_COMPLEXITY") or "true").lower() in ("1", "true", "yes", "y")
+DEFAULT_TEMP_PASSWORD = (os.getenv("DEFAULT_TEMP_PASSWORD") or "").strip()
+
+SEED_ADMIN_ENABLED = (os.getenv("SEED_ADMIN_ENABLED") or "false").lower() in ("1", "true", "yes", "y")
+SEED_ADMIN_EMAIL = (os.getenv("SEED_ADMIN_EMAIL") or "").strip()
+SEED_ADMIN_PASSWORD = (os.getenv("SEED_ADMIN_PASSWORD") or "").strip()
+SEED_LEGACY_ADMIN_EMAIL = (os.getenv("SEED_LEGACY_ADMIN_EMAIL") or "").strip()
+SEED_LEGACY_ADMIN_PASSWORD = (os.getenv("SEED_LEGACY_ADMIN_PASSWORD") or "").strip()
+
+RATE_LIMIT_WINDOW_SEC = int(os.getenv("RATE_LIMIT_WINDOW_SEC") or "300")
+RATE_LIMIT_LOGIN_IP = int(os.getenv("RATE_LIMIT_LOGIN_IP") or "10")
+RATE_LIMIT_LOGIN_EMAIL = int(os.getenv("RATE_LIMIT_LOGIN_EMAIL") or "5")
+
+_rate_store: dict[str, deque] = defaultdict(deque)
+_seed_done = False
+LOG_LEVEL = (os.getenv("LOG_LEVEL") or "INFO").upper()
+LOG_FILE = (os.getenv("LOG_FILE") or "").strip()
+
+if LOG_FILE:
+    try:
+        handler = RotatingFileHandler(LOG_FILE, maxBytes=10_000_000, backupCount=5)
+        formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+        handler.setFormatter(formatter)
+        handler.setLevel(LOG_LEVEL)
+        app.logger.addHandler(handler)
+    except Exception:
+        pass
+
+app.logger.setLevel(LOG_LEVEL)
 
 # =========================
 # 3) DB CONNECTION (SQL Server)
@@ -106,7 +187,7 @@ def get_db_connection():
 
     trusted = os.getenv("SQL_TRUSTED_CONNECTION", "false").lower() in ("1", "true", "yes", "y")
     encrypt = os.getenv("SQL_ENCRYPT", "yes").lower() in ("1", "true", "yes", "y")
-    trust_cert = os.getenv("SQL_TRUST_CERT", "yes").lower() in ("1", "true", "yes", "y")
+    trust_cert = os.getenv("SQL_TRUST_CERT", "no").lower() in ("1", "true", "yes", "y")
 
     if not server or not database:
         raise RuntimeError("SQL_SERVER e SQL_DATABASE não configurados no .env")
@@ -150,6 +231,68 @@ def _rows_to_dicts(cur, rows):
     return out
 
 # =========================
+# 3.1) HELPERS DE SEGURANÇA
+# =========================
+def _get_client_ip() -> str:
+    if TRUST_PROXY_HEADERS and request.access_route:
+        return request.access_route[0]
+    return request.remote_addr or "unknown"
+
+def _rate_allow(bucket: str, key: str, limit: int, window_sec: int) -> tuple[bool, int]:
+    if not key:
+        return True, 0
+    now = time()
+    q = _rate_store[f"{bucket}:{key}"]
+    while q and q[0] <= now - window_sec:
+        q.popleft()
+    if len(q) >= limit:
+        retry_after = int(window_sec - (now - q[0])) if q else window_sec
+        return False, max(retry_after, 1)
+    q.append(now)
+    return True, 0
+
+def _password_is_strong(password: str) -> bool:
+    if not password or len(password) < PASSWORD_MIN_LENGTH:
+        return False
+    if not PASSWORD_REQUIRE_COMPLEXITY:
+        return True
+    has_letter = any(c.isalpha() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    return has_letter and has_digit
+
+def _safe_error_message(exc: Exception | None, fallback: str = "Erro interno") -> str:
+    if app.config.get("DEBUG"):
+        return str(exc) if exc else fallback
+    return fallback
+
+def _error_response(status: int = 500, message: str = "Erro interno", exc: Exception | None = None):
+    if exc:
+        app.logger.exception("Erro inesperado", exc_info=exc)
+    return jsonify({"ok": False, "error": _safe_error_message(exc, message)}), status
+
+@app.before_request
+def _enforce_https():
+    if FORCE_HTTPS and not request.is_secure:
+        return redirect(request.url.replace("http://", "https://", 1), code=308)
+
+@app.after_request
+def _set_security_headers(response):
+    if SECURE_HEADERS:
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+        response.headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
+        response.headers.setdefault("Content-Security-Policy", CSP_POLICY)
+        if FORCE_HTTPS or request.is_secure:
+            response.headers.setdefault("Strict-Transport-Security", f"max-age={HSTS_MAX_AGE}; includeSubDomains")
+
+    if response.mimetype == "application/json":
+        response.headers.setdefault("Cache-Control", "no-store")
+        response.headers.setdefault("Pragma", "no-cache")
+    return response
+
+# =========================
 # 4) AUTH / JWT / RBAC
 # =========================
 def hash_password(plain: str) -> str:
@@ -164,6 +307,8 @@ def verify_password(plain: str, hashed: str) -> bool:
 def _jwt_secret():
     if not JWT_SECRET:
         raise RuntimeError("JWT_SECRET não configurado no .env")
+    if not DEBUG and len(JWT_SECRET) < JWT_MIN_SECRET_LEN:
+        raise RuntimeError("JWT_SECRET muito curta para producao")
     return JWT_SECRET
 
 def _issue_token(user: dict) -> str:
@@ -177,15 +322,33 @@ def _issue_token(user: dict) -> str:
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(hours=JWT_EXPIRES_HOURS)).timestamp()),
     }
+    if JWT_ISSUER:
+        payload["iss"] = JWT_ISSUER
+    if JWT_AUDIENCE:
+        payload["aud"] = JWT_AUDIENCE
+    payload["jti"] = uuid.uuid4().hex
     return jwt.encode(payload, _jwt_secret(), algorithm="HS256")
 
 def _decode_token(token: str) -> dict:
+    options = {"require": ["sub", "exp"], "verify_iat": False}
+    if JWT_ISSUER:
+        options["require"].append("iss")
+    if JWT_AUDIENCE:
+        options["require"].append("aud")
+
+    kwargs = {}
+    if JWT_ISSUER:
+        kwargs["issuer"] = JWT_ISSUER
+    if JWT_AUDIENCE:
+        kwargs["audience"] = JWT_AUDIENCE
+
     return jwt.decode(
         token,
         _jwt_secret(),
         algorithms=["HS256"],
-        options={"require": ["sub", "exp"], "verify_iat": False},
+        options=options,
         leeway=120,
+        **kwargs,
     )
 
 def _get_bearer_token():
@@ -202,28 +365,38 @@ def get_current_user(optional: bool = False):
         raise PermissionError("Token ausente")
     try:
         data = _decode_token(token)
-        return {
-            "id": int(data["sub"]),
-            "nivel": int(data["nivel"]),
-            "setor_id": data.get("setor_id"),
-            "nome": data.get("nome"),
-            "email": data.get("email"),
-        }
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            db_user = _fetch_user_by_id(cur, int(data["sub"]))
+            if not db_user or not db_user.get("ativo"):
+                raise PermissionError("Usuario inativo")
+            return {
+                "id": int(db_user["id"]),
+                "nivel": int(db_user["nivel"]),
+                "setor_id": db_user.get("setor_id"),
+                "nome": db_user.get("nome"),
+                "email": db_user.get("email"),
+            }
     except jwt.ExpiredSignatureError as e:
-        print(f"[AUTH] token expirado: {e}")
+        app.logger.warning("[AUTH] token expirado: %s", e)
         if optional:
             return None
         raise PermissionError("Token expirado")
     except jwt.InvalidTokenError as e:
-        print(f"[AUTH] token inválido: {e}")
+        app.logger.warning("[AUTH] token invalido: %s", e)
         if optional:
             return None
-        raise PermissionError("Token inválido")
+        raise PermissionError("Token invalido")
+    except PermissionError:
+        if optional:
+            return None
+        raise
     except Exception as e:
-        print(f"[AUTH] erro ao decodificar token: {e}")
+        app.logger.exception("[AUTH] erro ao validar token", exc_info=e)
         if optional:
             return None
-        raise PermissionError("Token inválido/expirado")
+        raise PermissionError("Token invalido/expirado")
+
 
 def require_level(min_level: int):
     def deco(fn):
@@ -233,6 +406,8 @@ def require_level(min_level: int):
                 user = get_current_user(optional=False)
             except PermissionError as e:
                 return jsonify({"ok": False, "error": str(e)}), 401
+            except Exception as e:
+                return _error_response(500, "Erro interno", e)
 
             if int(user["nivel"]) < int(min_level):
                 return jsonify({"ok": False, "error": f"Permissão insuficiente (requer nível >= {min_level})"}), 403
@@ -341,24 +516,24 @@ def _log_action(user: dict | None, action: str, details: str | None = None):
 
 def ensure_seed_admin():
     """
-    Se não existir nenhum usuário nível 5 ativo, cria um ADM inicial.
-
-    - Usa SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD (do .env).
-    - Para compatibilidade com o frontend legado (que muitas vezes tenta "ad"/"1120"),
-      também garante o usuário "ad" (nível 5) caso não exista, sem depender do .env.
-      (isso evita o "Login inválido" logo no 1º uso).
+    Cria um ADM inicial quando habilitado via SEED_ADMIN_ENABLED.
     """
-    seed_email = (os.getenv("SEED_ADMIN_EMAIL") or "admin@empresa.com").strip()
-    seed_pass = os.getenv("SEED_ADMIN_PASSWORD") or "1234"
+    if not SEED_ADMIN_ENABLED:
+        return
 
-    legacy_email = (os.getenv("SEED_LEGACY_ADMIN_EMAIL") or "").strip()
-    legacy_pass = os.getenv("SEED_LEGACY_ADMIN_PASSWORD") or "1120"
+    if not SEED_ADMIN_EMAIL or not SEED_ADMIN_PASSWORD:
+        raise RuntimeError("SEED_ADMIN_EMAIL e SEED_ADMIN_PASSWORD obrigatorios quando SEED_ADMIN_ENABLED=true")
+    if not _password_is_strong(SEED_ADMIN_PASSWORD):
+        raise RuntimeError("SEED_ADMIN_PASSWORD fraca")
+
+    legacy_email = SEED_LEGACY_ADMIN_EMAIL
+    legacy_pass = SEED_LEGACY_ADMIN_PASSWORD
+    if legacy_email and (not legacy_pass or not _password_is_strong(legacy_pass)):
+        raise RuntimeError("SEED_LEGACY_ADMIN_PASSWORD fraca")
 
     with get_db_connection() as conn:
         cur = conn.cursor()
 
-        # Se já existe algum ADM ativo, não precisamos criar o seed principal,
-        # mas ainda podemos garantir o legacy se quiser.
         cur.execute("SELECT COUNT(1) FROM ZFU WHERE ISNULL(ZFU_NIVEL,1) = 5 AND ZFU_ATIVO = 1")
         has_admin = int(cur.fetchone()[0] or 0)
 
@@ -374,9 +549,8 @@ def ensure_seed_admin():
             )
 
         if not has_admin:
-            _ensure_user(seed_email, seed_pass, "Administrador")
+            _ensure_user(SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD, "Administrador")
 
-        # Compatibilidade (pode desativar colocando SEED_LEGACY_ADMIN_EMAIL vazio)
         if legacy_email:
             _ensure_user(legacy_email, legacy_pass, "Admin (legacy)")
 
@@ -384,11 +558,14 @@ def ensure_seed_admin():
 
 @app.before_request
 def _seed_admin_once():
-    # tenta seed silencioso
+    global _seed_done
+    if _seed_done or not SEED_ADMIN_ENABLED:
+        return
     try:
         ensure_seed_admin()
-    except Exception:
-        pass
+    except Exception as e:
+        app.logger.exception("Falha ao executar seed admin", exc_info=e)
+    _seed_done = True
 
 # =========================
 # 5) HELPERS DE UPSERT (Setor / Funcionário / Indicador)
@@ -448,10 +625,16 @@ def _get_or_create_funcionario(cur, funcionario_id, funcionario_email, funcionar
             return int(row[0])
         raise ValueError("Email do funcionario obrigatorio para criar")
 
+    temp_password = DEFAULT_TEMP_PASSWORD
+    ativo = 1
+    if not temp_password:
+        temp_password = secrets.token_urlsafe(18)
+        ativo = 0
+
     cur.execute(
         "INSERT INTO ZFU (ZFU_NOME, ZFU_EMAIL, ZFU_SETOR_ID, ZFU_NIVEL, ZFU_SENHA_HASH, ZFU_ATIVO, ZFU_CRIADO_EM) "
-        "VALUES (?, ?, ?, 1, ?, 1, SYSUTCDATETIME())",
-        (nome, email, setor_id, hash_password("1234"))
+        "VALUES (?, ?, ?, 1, ?, ?, SYSUTCDATETIME())",
+        (nome, email, setor_id, hash_password(temp_password), ativo)
     )
     cur.execute("SELECT SCOPE_IDENTITY()")
     return int(cur.fetchone()[0])
@@ -514,6 +697,21 @@ def api_auth_login():
     if not email or not senha:
         return jsonify({"ok": False, "error": "Informe email e senha"}), 400
 
+    ip = _get_client_ip()
+    ok, retry = _rate_allow("login_ip", ip, RATE_LIMIT_LOGIN_IP, RATE_LIMIT_WINDOW_SEC)
+    if not ok:
+        resp = jsonify({"ok": False, "error": f"Muitas tentativas. Tente novamente em {retry}s"})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry)
+        return resp
+
+    ok, retry = _rate_allow("login_email", email, RATE_LIMIT_LOGIN_EMAIL, RATE_LIMIT_WINDOW_SEC)
+    if not ok:
+        resp = jsonify({"ok": False, "error": f"Muitas tentativas. Tente novamente em {retry}s"})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry)
+        return resp
+
     try:
         with get_db_connection() as conn:
             cur = conn.cursor()
@@ -537,7 +735,7 @@ def api_auth_login():
                 }
             })
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/me", methods=["GET"])
 @require_level(1)
@@ -561,7 +759,7 @@ def api_me():
                 }
             })
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 # =========================
 # 8) SETORES / INDICADORES (GET)
@@ -574,6 +772,8 @@ def api_setores():
     - Gestão/ADM: lista todos.
     """
     user = get_current_user(optional=True)
+    if not user and not ALLOW_PUBLIC_READS:
+        return jsonify({"ok": False, "error": "Token ausente"}), 401
 
     with get_db_connection() as conn:
         cur = conn.cursor()
@@ -627,7 +827,7 @@ def api_gestor_funcionarios():
             rows = cur.fetchall()
             return jsonify(_rows_to_dicts(cur, rows))
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/setores", methods=["POST"])
 @require_level(4)
@@ -653,7 +853,7 @@ def api_create_setor():
             _log_action(request.current_user, 'setor_criar', f"nome={nome}")
             return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/setores/<int:setor_id>", methods=["PUT"])
 @require_level(4)
@@ -690,7 +890,7 @@ def api_update_setor(setor_id: int):
             _log_action(request.current_user, 'setor_atualizar', f"setor_id={setor_id}")
             return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/indicadores", methods=["GET"])
 def api_indicadores():
@@ -701,6 +901,8 @@ def api_indicadores():
     - Gestao/ADM: pode ver todos
     """
     user = get_current_user(optional=True)
+    if not user and not ALLOW_PUBLIC_READS:
+        return jsonify({"ok": False, "error": "Token ausente"}), 401
     setor_id = request.args.get("setorId") or request.args.get("setor_id")
 
     with get_db_connection() as conn:
@@ -817,7 +1019,7 @@ def api_listar_valores():
             rows = cur.fetchall()
             return jsonify(_rows_to_dicts(cur, rows))
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/valores", methods=["POST"])
 @require_level(3)
@@ -937,7 +1139,55 @@ def api_salvar_valores_definitivos():
     except Exception as e:
         print("[ERRO] /api/valores:", str(e))
         print(traceback.format_exc())
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
+
+@app.route("/api/valores/<int:valor_id>", methods=["PUT"])
+@require_level(4)
+def api_update_valor(valor_id: int):
+    """
+    Edicao de valor definitivo (somente Gestao/ADM).
+    Body: { valor, funcionario_id? }
+    """
+    user = request.current_user
+    payload = request.get_json(force=True, silent=True) or {}
+
+    if "valor" not in payload:
+        return jsonify({"ok": False, "error": "Informe o campo valor"}), 400
+
+    valor = payload.get("valor")
+    funcionario_id = payload.get("funcionario_id") or payload.get("funcionarioId")
+    if funcionario_id in ("", None):
+        funcionario_id = None
+    else:
+        funcionario_id = int(funcionario_id)
+
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT ZIV_ID, ZIV_SETOR_ID, ZIV_FUNCIONARIO_ID FROM ZIV WHERE ZIV_ID = ?",
+                (int(valor_id),)
+            )
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"ok": False, "error": "Valor nao encontrado"}), 404
+
+            _, setor_id, func_id_current = row
+            _enforce_setor_access(user, int(setor_id))
+
+            func_id_to_set = func_id_current if funcionario_id is None else funcionario_id
+
+            cur.execute(
+                "UPDATE ZIV SET ZIV_VALOR = ?, ZIV_FUNCIONARIO_ID = ?, ZIV_ATUALIZADO_EM = SYSUTCDATETIME() WHERE ZIV_ID = ?",
+                (str(valor) if valor is not None else None, func_id_to_set, int(valor_id))
+            )
+            conn.commit()
+            _log_action(request.current_user, "valor_atualizar", f"valor_id={valor_id}")
+            return jsonify({"ok": True})
+    except PermissionError as e:
+        return jsonify({"ok": False, "error": str(e)}), 403
+    except Exception as e:
+        return _error_response(500, "Erro interno", e)
 
 # =========================
 # 10) DRAFTS (rascunhos) - POST/GET/SUBMIT/APPROVE
@@ -1045,7 +1295,7 @@ def api_salvar_draft():
     except Exception as e:
         print("[ERRO] /api/drafts:", str(e))
         print(traceback.format_exc())
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/drafts", methods=["GET"])
 @require_level(2)
@@ -1138,7 +1388,7 @@ def api_listar_drafts_rejeitados():
             rows = cur.fetchall()
             return jsonify(_rows_to_dicts(cur, rows))
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/drafts/pending", methods=["GET"])
 @require_level(3)
@@ -1203,7 +1453,7 @@ def api_listar_drafts_pendentes():
             rows = cur.fetchall()
             return jsonify(_rows_to_dicts(cur, rows))
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/drafts/submit", methods=["POST"])
 @require_level(2)
@@ -1255,7 +1505,7 @@ def api_submit_drafts():
             )
             return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/drafts/approve", methods=["POST"])
 @require_level(3)
@@ -1323,7 +1573,7 @@ def api_approve_drafts():
             _log_action(request.current_user, 'drafts_aprovar', f"setor_id={setor_id} periodo={p} qtd={len(items)}")
             return jsonify({"ok": True, "aprovados": len(items)})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/drafts/<int:draft_id>/approve", methods=["POST"])
 @require_level(3)
@@ -1374,7 +1624,7 @@ def api_approve_draft_item(draft_id: int):
     except PermissionError as e:
         return jsonify({"ok": False, "error": str(e)}), 403
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/drafts/<int:draft_id>/reject", methods=["POST"])
 @require_level(3)
@@ -1414,7 +1664,7 @@ def api_reject_draft_item(draft_id: int):
     except PermissionError as e:
         return jsonify({"ok": False, "error": str(e)}), 403
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 # =========================
 # 11) GESTÃO/ADM - USERS CRUD
@@ -1433,7 +1683,7 @@ def api_list_users():
             rows = cur.fetchall()
             return jsonify(_rows_to_dicts(cur, rows))
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/users", methods=["POST"])
 @require_level(4)
@@ -1444,12 +1694,20 @@ def api_create_user():
 
     nome = (payload.get("nome") or "").strip()
     email = (payload.get("email") or "").strip()
-    senha = payload.get("senha") or payload.get("password") or "1234"
+    senha = (payload.get("senha") or payload.get("password") or "").strip()
     setor_id = payload.get("setor_id") or payload.get("setorId")
     nivel = int(payload.get("nivel") or 1)
 
     if not nome or not email:
         return jsonify({"ok": False, "error": "Informe nome e email"}), 400
+
+    if not senha:
+        if DEFAULT_TEMP_PASSWORD:
+            senha = DEFAULT_TEMP_PASSWORD
+        else:
+            return jsonify({"ok": False, "error": "Informe uma senha"}), 400
+    if not _password_is_strong(senha):
+        return jsonify({"ok": False, "error": f"Senha fraca (min {PASSWORD_MIN_LENGTH} caracteres, letras e numeros)"}), 400
 
     if int(admin["nivel"]) < 5 and nivel >= int(admin["nivel"]):
         return jsonify({"ok": False, "error": "Você só pode criar usuários abaixo do seu nível"}), 403
@@ -1472,7 +1730,7 @@ def api_create_user():
             _log_action(request.current_user, 'user_criar', f"user_id={new_id} email={email}")
             return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/users/<int:user_id>", methods=["PUT"])
 @require_level(4)
@@ -1521,7 +1779,7 @@ def api_update_user(user_id: int):
             _log_action(request.current_user, 'user_atualizar', f"user_id={user_id}")
             return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/users/<int:user_id>/reset-password", methods=["POST"])
 @require_level(4)
@@ -1529,7 +1787,12 @@ def api_reset_password(user_id: int):
     """Redefine senha. Gestão não pode resetar senha de nível igual/acima."""
     admin = request.current_user
     payload = request.get_json(force=True, silent=True) or {}
-    new_pass = payload.get("senha") or payload.get("password") or "1234"
+    new_pass = (payload.get("senha") or payload.get("password") or "").strip()
+
+    if not new_pass:
+        return jsonify({"ok": False, "error": "Informe uma senha"}), 400
+    if not _password_is_strong(new_pass):
+        return jsonify({"ok": False, "error": f"Senha fraca (min {PASSWORD_MIN_LENGTH} caracteres, letras e numeros)"}), 400
 
     try:
         with get_db_connection() as conn:
@@ -1552,7 +1815,7 @@ def api_reset_password(user_id: int):
             _log_action(request.current_user, 'user_reset_senha', f"user_id={user_id}")
             return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 # =========================
 # 12) GESTÃO/ADM - INDICADORES CRUD
@@ -1594,7 +1857,7 @@ def api_create_indicador():
             )
             return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 @app.route("/api/indicadores/<int:indicador_id>", methods=["PUT"])
 @require_level(4)
@@ -1638,7 +1901,7 @@ def api_update_indicador(indicador_id: int):
             conn.commit()
             return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return _error_response(500, "Erro interno", e)
 
 # =========================
 # 14) MAIN
@@ -1649,4 +1912,4 @@ if __name__ == "__main__":
     print("=" * 70)
     print("📍 Acesse: http://127.0.0.1:5000")
     print("=" * 70)
-    app.run(debug=True, port=5000, host="0.0.0.0", use_reloader=False)
+    app.run(debug=DEBUG, port=int(os.getenv("APP_PORT") or "5000"), host=(os.getenv("APP_HOST") or "127.0.0.1"), use_reloader=False)

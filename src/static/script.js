@@ -24,11 +24,20 @@ function normalizeToken(token) {
     return trimmed;
 }
 
+function isStrongPassword(password) {
+    if (!password || password.length < 8) return false;
+    const hasLetter = /[A-Za-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    return hasLetter && hasNumber;
+}
+
+const tokenStorage = sessionStorage;
+
 /**
  * Token de autenticação em memória.
- * Carregado do localStorage para manter sessão.
+ * Carregado do sessionStorage para manter sessão.
  */
-let authToken = normalizeToken(localStorage.getItem('authToken'));
+let authToken = normalizeToken(tokenStorage.getItem('authToken'));
 
 /**
  * Setor aberto no momento na tela de indicadores.
@@ -191,9 +200,15 @@ function getPeriodoAtualOuDoFormulario() {
     const dateInd = currentSector?.indicadores?.find(i => isDateIndicator(i));
 
     if (dateInd?.valor && typeof dateInd.valor === 'string') {
-        // valor ISO: YYYY-MM-DD
-        const parts = dateInd.valor.split('-');
-        if (parts.length >= 2) return `${parts[0]}-${parts[1]}`;
+        const raw = dateInd.valor.trim();
+        if (raw.includes('/')) {
+            if (validarData(raw)) {
+                return converterDataParaISO(raw);
+            }
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+            return raw;
+        }
     }
 
     const now = new Date();
@@ -294,7 +309,7 @@ async function apiPut(url, body) {
  */
 function handleUnauthorized() {
     authToken = null;
-    localStorage.removeItem('authToken');
+    tokenStorage.removeItem('authToken');
     alert('Sessão expirada. Faça login novamente.');
     showLoginScreen();
 }
@@ -384,7 +399,7 @@ function togglePassword() {
 /**
  * Realiza login via API:
  * - POST /api/auth/login
- * - Salva token no localStorage
+ * - Salva token no sessionStorage
  * - Salva currentUser em memória
  * - Vai para tela de setores
  */
@@ -411,10 +426,10 @@ async function handleLogin() {
 
         authToken = normalizeToken(data.token);
         if (!authToken) {
-            localStorage.removeItem('authToken');
+            tokenStorage.removeItem('authToken');
             throw new Error('Token inválido retornado pelo servidor');
         }
-        localStorage.setItem('authToken', authToken);
+        tokenStorage.setItem('authToken', authToken);
 
         currentUser = {
             id: data.user.id,
@@ -444,12 +459,12 @@ async function handleLogin() {
 function handleLogout() {
     currentUser = null;
     authToken = null;
-    localStorage.removeItem('authToken');
+    tokenStorage.removeItem('authToken');
     location.reload();
 }
 
 async function tryRestoreSession() {
-    const token = normalizeToken(localStorage.getItem('authToken'));
+    const token = normalizeToken(tokenStorage.getItem('authToken'));
     if (!token) {
         showLoginScreen();
         return;
@@ -479,7 +494,7 @@ async function tryRestoreSession() {
         showSectorsScreen();
     } catch (err) {
         authToken = null;
-        localStorage.removeItem('authToken');
+        tokenStorage.removeItem('authToken');
         showLoginScreen();
     }
 }
@@ -795,20 +810,17 @@ async function openSector(setor) {
 
             let inputHtml = '';
 
-            // Campo de data (texto com máscara DD/MM/AAAA)
+            // Campo de data com calendário (DD/MM/AAAA no locale pt-BR)
             if (isDateField) {
-                const valorBR = indicador.valor ? converterDataParaBR(indicador.valor) : '';
+                const valorISO = indicador.valor ? indicador.valor : '';
                 inputHtml = `
                     <input
-                        type="text"
+                        type="date"
                         class="indicator-input"
                         data-id="${indicador.id}"
-                        value="${valorBR}"
-                        placeholder="DD/MM/AAAA"
-                        maxlength="10"
-                        oninput="autoFormatarData(this)"
+                        value="${valorISO}"
                         onchange="updateIndicatorDate(${indicador.id}, this.value)"
-                        style="font-family: monospace; letter-spacing: 1px;"
+                        lang="pt-BR"
                         ${readonlyAttr}
                     >
                 `;
@@ -830,7 +842,7 @@ async function openSector(setor) {
 
             // Meta exibida somente para indicadores numéricos
             const metaHtml = isDateField
-                ? '<div class="indicator-meta">Formato: DD/MM/AAAA</div>'
+                ? '<div class="indicator-meta">Selecione a data (DD/MM/AAAA)</div>'
                 : `<div class="indicator-meta">Meta: ${indicador.meta ?? '-'} ${indicador.unidade ?? ''}</div>`;
 
             div.innerHTML = `
@@ -935,13 +947,20 @@ function updateIndicatorDate(id, value) {
         return;
     }
 
-    if (value.length === 10) {
-        if (!validarData(value)) {
+    const raw = String(value).trim();
+    if (raw.includes('/')) {
+        if (!validarData(raw)) {
             alert('Data inválida! Use o formato DD/MM/AAAA');
             return;
         }
-        ind.valor = converterDataParaISO(value);
+        ind.valor = converterDataParaISO(raw);
+        return;
     }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        ind.valor = raw;
+        return;
+    }
+    alert('Data inválida!');
 }
 
 /**
@@ -1570,10 +1589,18 @@ async function adminCreateUser() {
         const email = document.getElementById('adminUserEmail').value.trim();
         const setorId = document.getElementById('adminUserSetor').value;
         const nivel = document.getElementById('adminUserNivel').value;
-        const senha = document.getElementById('adminUserSenha').value.trim() || '1234';
+        const senha = document.getElementById('adminUserSenha').value.trim();
 
         if (!nome || !email) {
             showToast('Informe nome e email', 'error');
+            return;
+        }
+        if (!senha) {
+            showToast('Informe uma senha', 'error');
+            return;
+        }
+        if (!isStrongPassword(senha)) {
+            showToast('Senha fraca (min 8 caracteres, letras e numeros)', 'error');
             return;
         }
 
@@ -1644,11 +1671,21 @@ async function adminResetUserPassword() {
 
         const senhaRaw = await showPromptModal({
             title: 'Redefinir senha',
-            message: 'Digite a nova senha (vazio = 1234)',
+            message: 'Digite a nova senha',
             placeholder: 'Nova senha',
             type: 'password'
         });
         if (senhaRaw === null) return;
+
+        const senha = senhaRaw.trim();
+        if (!senha) {
+            showToast('Informe uma senha', 'error');
+            return;
+        }
+        if (!isStrongPassword(senha)) {
+            showToast('Senha fraca (min 8 caracteres, letras e numeros)', 'error');
+            return;
+        }
 
         const confirmed = await showConfirmModal({
             title: 'Confirmar redefinicao',
@@ -1656,7 +1693,6 @@ async function adminResetUserPassword() {
         });
         if (!confirmed) return;
 
-        const senha = senhaRaw.trim() || '1234';
         await apiPost(`/api/users/${id}/reset-password`, { senha });
 
         showToast('Senha redefinida');

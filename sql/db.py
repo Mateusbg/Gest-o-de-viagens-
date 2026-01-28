@@ -1,10 +1,20 @@
+import os
+
+driver = os.getenv("SQL_DRIVER", "ODBC Driver 18 for SQL Server")
+server = os.getenv("SQL_SERVER", "")
+database = os.getenv("SQL_DATABASE", "")
+user = os.getenv("SQL_USER", "")
+password = os.getenv("SQL_PASSWORD", "")
+encrypt = os.getenv("SQL_ENCRYPT", "yes")
+trust_cert = os.getenv("SQL_TRUST_CERT", "no")
+
 conn_str = (
-    "DRIVER={ODBC Driver 18 for SQL Server};"
-    "SERVER=SRV-SQL-03;"
-    "DATABASE=PRD_WEB_APP;"
-    "UID=mateus;"
-    "PWD=mateus@2535976356;"
-    "Encrypt=yes;"
-    "TrustServerCertificate=yes;"
+    f"DRIVER={{{driver}}};"
+    f"SERVER={server};"
+    f"DATABASE={database};"
+    f"UID={user};"
+    f"PWD={password};"
+    f"Encrypt={encrypt};"
+    f"TrustServerCertificate={trust_cert};"
     "Connection Timeout=10;"
 )
