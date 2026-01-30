@@ -98,15 +98,19 @@ New-NetFirewallRule -DisplayName "Indicadores Flask 5000" -Direction Inbound -Ac
 ```
 
 4) **Criar registro no DNS interno**
-- No servidor DNS (ex.: Windows DNS Manager), crie um **A record**:
-  - Nome: `indicadores` (exemplo)
-  - IP: `IP_DO_SERVIDOR`
-- Resultado esperado: `http://indicadores.seudominio.local:5000/`
+- Dados informados:
+  - IP: `192.168.31.201`
+  - Hostnames: `web-indicadore.com`, `www.web-indicadore.com`, `web-indicadore`
+- No servidor DNS (ex.: Windows DNS Manager), crie **A records** na zona `web-indicadore.com`:
+  - Nome: `@` -> `192.168.31.201` (resolve `web-indicadore.com`)
+  - Nome: `www` -> `192.168.31.201` (resolve `www.web-indicadore.com`)
+- Para o hostname curto `web-indicadore`, crie um A record na sua **zona interna** (ex.: `empresa.local`) ou garanta que o sufixo DNS dos clientes inclua `web-indicadore.com`.
+- Resultado esperado: `http://web-indicadore.com:5000/` e `http://www.web-indicadore.com:5000/`
 
 5) **Testar**
 ```powershell
 Resolve-DnsName indicadores.seudominio.local
-Test-NetConnection indicadores.seudominio.local -Port 5000
+Test-NetConnection web-indicadore.com -Port 5000
 ```
 
 > Se for usar proxy reverso (IIS/Nginx) e HTTPS, habilite `TRUST_PROXY_HEADERS=true` e `FORCE_HTTPS=true` no `.env`.
