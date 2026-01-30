@@ -78,6 +78,39 @@ python run.py
 
 Acesse: `http://127.0.0.1:5000/`
 
+## Publicar no DNS local (intranet)
+
+1) **Garantir IP fixo do servidor**
+- Defina IP estático ou reserva DHCP para a máquina que vai hospedar o app.
+
+2) **Expor o Flask na rede**
+- No `.env`, configure:
+```env
+APP_HOST=0.0.0.0
+APP_PORT=5000
+```
+- Inicie o servidor com `python run.py`.
+
+3) **Liberar a porta no firewall do Windows**
+- Crie uma regra de entrada para a porta `5000` (ou a que você definir):
+```powershell
+New-NetFirewallRule -DisplayName "Indicadores Flask 5000" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5000
+```
+
+4) **Criar registro no DNS interno**
+- No servidor DNS (ex.: Windows DNS Manager), crie um **A record**:
+  - Nome: `indicadores` (exemplo)
+  - IP: `IP_DO_SERVIDOR`
+- Resultado esperado: `http://indicadores.seudominio.local:5000/`
+
+5) **Testar**
+```powershell
+Resolve-DnsName indicadores.seudominio.local
+Test-NetConnection indicadores.seudominio.local -Port 5000
+```
+
+> Se for usar proxy reverso (IIS/Nginx) e HTTPS, habilite `TRUST_PROXY_HEADERS=true` e `FORCE_HTTPS=true` no `.env`.
+
 ## Endpoints principais (API)
 - `POST /api/auth/login`
 - `GET /api/me`
