@@ -6,3 +6,4 @@ PyJWT==2.9.0
 pyodbc==5.1.0
 passlib==1.7.4
 bcrypt==4.0.1
+waitress==3.0.2
