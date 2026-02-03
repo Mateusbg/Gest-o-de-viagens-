@@ -26,7 +26,7 @@ Aplicação web para gestão de indicadores corporativos por setor e período, c
 
 ## Requisitos
 - **Python 3.10+**
-- **SQL Server** + **ODBC Driver 18 for SQL Server**
+- **SQL Server** + **ODBC Driver 17/18 for SQL Server**
 - **Windows** (exemplos em PowerShell)
 
 ## Como rodar localmente (Windows)
@@ -78,42 +78,46 @@ python run.py
 
 Acesse: `http://127.0.0.1:5000/`
 
-## Publicar no DNS local (intranet)
+## Publicar na intranet (HTTP via IIS)
 
-1) **Garantir IP fixo do servidor**
-- Defina IP estático ou reserva DHCP para a máquina que vai hospedar o app.
-
-2) **Expor o Flask na rede**
-- No `.env`, configure:
+1) **Rodar o app localmente (Loopback)**
 ```env
-APP_HOST=0.0.0.0
+APP_HOST=127.0.0.1
 APP_PORT=5000
+FORCE_HTTPS=false
+TRUST_PROXY_HEADERS=false
 ```
-- Inicie o servidor com `python run.py`.
-
-3) **Liberar a porta no firewall do Windows**
-- Crie uma regra de entrada para a porta `5000` (ou a que você definir):
 ```powershell
-New-NetFirewallRule -DisplayName "Indicadores Flask 5000" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5000
+.\.venv\Scripts\python.exe -m waitress --host=127.0.0.1 --port=5000 src.app:app
 ```
 
-4) **Criar registro no DNS interno**
-- Dados informados:
-  - IP: `192.168.31.201`
-  - Hostnames: `web-indicadore.com`, `www.web-indicadore.com`, `web-indicadore`
-- No servidor DNS (ex.: Windows DNS Manager), crie **A records** na zona `web-indicadore.com`:
-  - Nome: `@` -> `192.168.31.201` (resolve `web-indicadore.com`)
-  - Nome: `www` -> `192.168.31.201` (resolve `www.web-indicadore.com`)
-- Para o hostname curto `web-indicadore`, crie um A record na sua **zona interna** (ex.: `empresa.local`) ou garanta que o sufixo DNS dos clientes inclua `web-indicadore.com`.
-- Resultado esperado: `http://web-indicadore.com:5000/` e `http://www.web-indicadore.com:5000/`
+2) **Configurar IIS como proxy reverso**
+- Instale **IIS**, **URL Rewrite** e **ARR**.
+- Crie um site no IIS apontando para uma pasta com o `web.config` do projeto.
+- Binding HTTP na porta 80 para:
+  - `web-indicadore.com`
+  - `www.web-indicadore.com`
+  - `web-indicadore`
 
-5) **Testar**
+3) **Liberar porta 80 no firewall**
 ```powershell
-Resolve-DnsName indicadores.seudominio.local
-Test-NetConnection web-indicadore.com -Port 5000
+New-NetFirewallRule -DisplayName "IIS HTTP" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 80
 ```
 
-> Se for usar proxy reverso (IIS/Nginx) e HTTPS, habilite `TRUST_PROXY_HEADERS=true` e `FORCE_HTTPS=true` no `.env`.
+4) **DNS interno**
+- A records apontando para o IP do servidor (ex.: `192.168.31.201`).
+- Resultado esperado: `http://web-indicadore.com/`
+
+> Para HTTPS, é necessário certificado válido e bindings 443. Caso opte por HTTPS, habilite `TRUST_PROXY_HEADERS=true` e `FORCE_HTTPS=true`.
+
+## Rodar como serviço (NSSM)
+```powershell
+.\nssm.exe install web-indicadore
+```
+Configuração:
+- **Path**: `...\Gest-o-de-viagens-\.venv\Scripts\python.exe`
+- **Arguments**: `-m waitress --host=127.0.0.1 --port=5000 src.app:app`
+- **Startup directory**: `...\Gest-o-de-viagens-`
 
 ## Endpoints principais (API)
 - `POST /api/auth/login`

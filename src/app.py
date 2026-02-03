@@ -78,6 +78,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 # 2) APP / CONFIG
 # =========================
 app = Flask(__name__)
+pyodbc.pooling = True
 
 # =========================
 # 2.1) SEGURANÇA / CONFIG
@@ -188,6 +189,8 @@ def get_db_connection():
     trusted = os.getenv("SQL_TRUSTED_CONNECTION", "false").lower() in ("1", "true", "yes", "y")
     encrypt = os.getenv("SQL_ENCRYPT", "yes").lower() in ("1", "true", "yes", "y")
     trust_cert = os.getenv("SQL_TRUST_CERT", "no").lower() in ("1", "true", "yes", "y")
+    conn_timeout = int(os.getenv("SQL_CONN_TIMEOUT", "10"))
+    app_name = (os.getenv("SQL_APP_NAME") or "").strip()
 
     if not server or not database:
         raise RuntimeError("SQL_SERVER e SQL_DATABASE não configurados no .env")
@@ -195,24 +198,23 @@ def get_db_connection():
     enc_part = "Encrypt=yes;" if encrypt else "Encrypt=no;"
     trust_part = "TrustServerCertificate=yes;" if trust_cert else "TrustServerCertificate=no;"
 
+    conn_parts = [
+        f"DRIVER={{{driver}}};",
+        f"SERVER={server};",
+        f"DATABASE={database};",
+        enc_part,
+        trust_part,
+        f"Connection Timeout={conn_timeout};",
+    ]
     if trusted:
-        conn_str = (
-            f"DRIVER={{{driver}}};"
-            f"SERVER={server};"
-            f"DATABASE={database};"
-            "Trusted_Connection=yes;"
-            + enc_part + trust_part
-        )
+        conn_parts.append("Trusted_Connection=yes;")
     else:
         if not user or not password:
             raise RuntimeError("SQL_USER e SQL_PASSWORD não configurados no .env")
-        conn_str = (
-            f"DRIVER={{{driver}}};"
-            f"SERVER={server};"
-            f"DATABASE={database};"
-            f"UID={user};PWD={password};"
-            + enc_part + trust_part
-        )
+        conn_parts.append(f"UID={user};PWD={password};")
+    if app_name:
+        conn_parts.append(f"APP={app_name};")
+    conn_str = "".join(conn_parts)
 
     return pyodbc.connect(conn_str)
 
@@ -250,6 +252,12 @@ def _rate_allow(bucket: str, key: str, limit: int, window_sec: int) -> tuple[boo
         return False, max(retry_after, 1)
     q.append(now)
     return True, 0
+
+def _normalize_periodo(periodo) -> str:
+    p = str(periodo or "").strip()
+    if len(p) == 7:
+        return p + "-01"
+    return p
 
 def _password_is_strong(password: str) -> bool:
     if not password or len(password) < PASSWORD_MIN_LENGTH:
@@ -509,10 +517,8 @@ def _can_user_fill_indicator(user: dict, indicador_setor_id: int, responsavel_id
     return False
 
 def _log_action(user: dict | None, action: str, details: str | None = None):
-    who = f"user_id={user.get('id')}" if user else "user_id=none"
-    when = datetime.utcnow().isoformat()
-    extra = f" details={details}" if details else ""
-    print(f"[AUDIT] {when} action={action} {who}{extra}")
+    user_id = user.get("id") if user else None
+    app.logger.info("[AUDIT] action=%s user_id=%s details=%s", action, user_id, details)
 
 def ensure_seed_admin():
     """
@@ -1004,9 +1010,7 @@ def api_listar_valores():
         if not allowed:
             return jsonify({"ok": False, "error": "Acesso negado a este setor"}), 403
 
-    p = str(periodo)
-    if len(p) == 7:
-        p = p + "-01"
+    p = _normalize_periodo(periodo)
 
     try:
         with get_db_connection() as conn:
@@ -1052,11 +1056,8 @@ def api_salvar_valores_definitivos():
 
     # normaliza periodo
     try:
-        p = str(periodo)
-        if len(p) == 7:
-            periodo_date = datetime.strptime(p + "-01", "%Y-%m-%d").date()
-        else:
-            periodo_date = datetime.strptime(p, "%Y-%m-%d").date()
+        p = _normalize_periodo(periodo)
+        periodo_date = datetime.strptime(p, "%Y-%m-%d").date()
         periodo_date = periodo_date.replace(day=1)
     except Exception:
         return jsonify({"ok": False, "error": "periodo inválido. Use YYYY-MM ou YYYY-MM-01"}), 400
@@ -1222,11 +1223,8 @@ def api_salvar_draft():
 
     # normaliza periodo
     try:
-        p = str(periodo)
-        if len(p) == 7:
-            periodo_date = datetime.strptime(p + "-01", "%Y-%m-%d").date()
-        else:
-            periodo_date = datetime.strptime(p, "%Y-%m-%d").date()
+        p = _normalize_periodo(periodo)
+        periodo_date = datetime.strptime(p, "%Y-%m-%d").date()
         periodo_date = periodo_date.replace(day=1)
     except Exception:
         return jsonify({"ok": False, "error": "periodo inválido. Use YYYY-MM ou YYYY-MM-01"}), 400
@@ -1321,9 +1319,7 @@ def api_listar_drafts():
             params.append(int(setor_id))
 
         if periodo:
-            p = str(periodo)
-            if len(p) == 7:
-                p = p + "-01"
+            p = _normalize_periodo(periodo)
             where.append("ZDR_PERIODO = ?")
             params.append(p)
 
@@ -1478,9 +1474,7 @@ def api_submit_drafts():
     except PermissionError as e:
         return jsonify({"ok": False, "error": str(e)}), 403
 
-    p = str(periodo)
-    if len(p) == 7:
-        p = p + "-01"
+    p = _normalize_periodo(periodo)
 
     try:
         with get_db_connection() as conn:
@@ -1527,9 +1521,7 @@ def api_approve_drafts():
     except PermissionError as e:
         return jsonify({"ok": False, "error": str(e)}), 403
 
-    p = str(periodo)
-    if len(p) == 7:
-        p = p + "-01"
+    p = _normalize_periodo(periodo)
 
     try:
         with get_db_connection() as conn:
