@@ -303,7 +303,7 @@ async function apiPut(url, body) {
 function handleUnauthorized() {
     authToken = null;
     tokenStorage.removeItem('authToken');
-    alert('Sessão expirada. Faça login novamente.');
+    showAlertModal('Sessão expirada. Faça login novamente.');
     showLoginScreen();
 }
 
@@ -401,7 +401,7 @@ async function handleLogin() {
     const senha = document.getElementById('senhaInput').value;
 
     if (!email || !senha) {
-        alert('Por favor, preencha todos os campos!');
+        showAlertModal('Por favor, preencha todos os campos!');
         return;
     }
 
@@ -439,7 +439,7 @@ async function handleLogin() {
         updateManagerButton();
         showSectorsScreen();
     } catch (err) {
-        alert(err.message || 'Erro ao logar');
+        showAlertModal(err.message || 'Erro ao logar');
     }
 }
 
@@ -561,7 +561,7 @@ function showIndicatorsScreen() {
  */
 function showAdminScreen() {
     if (!isAdminUser(currentUser)) {
-        alert('Acesso negado');
+        showAlertModal('Acesso negado');
         return;
     }
 
@@ -591,7 +591,7 @@ function backToSectorsFromAdmin() {
 
 function showManagerScreen() {
     if (!isManagerUser(currentUser)) {
-        alert('Acesso negado');
+        showAlertModal('Acesso negado');
         return;
     }
 
@@ -779,7 +779,7 @@ async function loadSectors() {
             grid.appendChild(card);
         });
     } catch (err) {
-        alert(`Erro ao carregar setores: ${err.message}`);
+        showAlertModal(`Erro ao carregar setores: ${err.message}`);
     }
 }
 
@@ -905,7 +905,7 @@ async function openSector(setor) {
             form.appendChild(div);
         });
     } catch (err) {
-        alert(`Erro ao carregar indicadores: ${err.message}`);
+        showAlertModal(`Erro ao carregar indicadores: ${err.message}`);
         return;
     }
 
@@ -1001,7 +1001,7 @@ function updateIndicatorDate(id, value) {
     const raw = String(value).trim();
     if (raw.includes('/')) {
         if (!validarData(raw)) {
-            alert('Data inválida! Use o formato DD/MM/AAAA');
+            showAlertModal('Data inválida! Use o formato DD/MM/AAAA');
             return;
         }
         const iso = converterDataParaISO(raw);
@@ -1014,7 +1014,7 @@ function updateIndicatorDate(id, value) {
         currentSector.periodo = raw;
         return;
     }
-    alert('Data inválida!');
+    showAlertModal('Data inválida!');
 }
 
 /**
@@ -1029,12 +1029,12 @@ async function handleSave() {
     const perfil = getUserPerfil(currentUser);
 
     if (perfil === 'LEITOR') {
-        alert('Seu perfil nao pode salvar indicadores.');
+        showAlertModal('Seu perfil nao pode salvar indicadores.');
         return;
     }
 
     if (!periodo) {
-        alert('Selecione a data do periodo antes de salvar.');
+        showAlertModal('Selecione a data do periodo antes de salvar.');
         return;
     }
 
@@ -1066,9 +1066,9 @@ async function handleSave() {
             status: perfil === 'EDITOR' ? 'Aguardando aprovacao' : 'Rascunho (DB)'
         });
         updateHistoryDisplay();
-        alert('Rascunho salvo no banco com sucesso!');
+        showAlertModal('Rascunho salvo no banco com sucesso!');
     } catch (err) {
-        alert(`Erro ao salvar rascunho: ${err.message}`);
+        showAlertModal(`Erro ao salvar rascunho: ${err.message}`);
     } finally {
         setButtonLoading(saveBtn, false);
     }
@@ -1079,7 +1079,7 @@ async function handleSendDB() {
     const sendBtn = document.getElementById('sendBtn');
 
     if (perfil !== 'LIDER' && perfil !== 'GESTAO' && perfil !== 'ADM') {
-        alert('Apenas LIDER, GESTAO ou ADM podem enviar valores definitivos para o banco. Use "Salvar" para rascunho.');
+        showAlertModal('Apenas LIDER, GESTAO ou ADM podem enviar valores definitivos para o banco. Use "Salvar" para rascunho.');
         return;
     }
 
@@ -1092,7 +1092,7 @@ async function handleSendDB() {
     const periodo = getPeriodoAtualOuDoFormulario();
     const valores = buildValoresPayload();
     if (!periodo) {
-        alert('Selecione a data do periodo antes de enviar.');
+        showAlertModal('Selecione a data do periodo antes de enviar.');
         return;
     }
 
@@ -1118,10 +1118,10 @@ async function handleSendDB() {
             status: 'Enviado para DB'
         });
         updateHistoryDisplay();
-        alert('Dados enviados para banco de dados com sucesso!');
+        showAlertModal('Dados enviados para banco de dados com sucesso!');
         backToSectors();
     } catch (err) {
-        alert(`Erro ao enviar para DB: ${err.message}`);
+        showAlertModal(`Erro ao enviar para DB: ${err.message}`);
     } finally {
         setButtonLoading(sendBtn, false);
     }
@@ -1293,6 +1293,35 @@ function showToast(message, type) {
     }, 3000);
 }
 
+function showAlertModal(message, title) {
+    const modal = document.getElementById('confirmModal');
+    const titleEl = document.getElementById('confirmTitle');
+    const messageEl = document.getElementById('confirmMessage');
+    const okBtn = document.getElementById('confirmOkBtn');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+
+    if (!modal || !titleEl || !messageEl || !okBtn || !cancelBtn) {
+        showToast(message, 'error');
+        return;
+    }
+
+    titleEl.textContent = title || 'Aviso';
+    messageEl.textContent = message || '';
+    modal.classList.remove('hidden');
+    cancelBtn.classList.add('hidden');
+    okBtn.textContent = 'OK';
+
+    const cleanup = () => {
+        modal.classList.add('hidden');
+        cancelBtn.classList.remove('hidden');
+        okBtn.textContent = 'Confirmar';
+        okBtn.onclick = null;
+        cancelBtn.onclick = null;
+    };
+
+    okBtn.onclick = () => cleanup();
+}
+
 function showConfirmModal({ title, message }) {
     const modal = document.getElementById('confirmModal');
     const titleEl = document.getElementById('confirmTitle');
@@ -1373,7 +1402,7 @@ async function loadManagerData() {
         renderManagerFuncionarios(Array.isArray(funcionariosData) ? funcionariosData : []);
         renderManagerIndicadores(Array.isArray(pendentesData) ? pendentesData : []);
     } catch (err) {
-        alert(`Erro ao carregar painel gestor: ${err.message}`);
+        showAlertModal(`Erro ao carregar painel gestor: ${err.message}`);
     }
 }
 
@@ -1534,7 +1563,7 @@ async function loadAdminData() {
             pendingAdminSetorId = null;
         }
     } catch (err) {
-        alert(`Erro ao carregar admin: ${err.message}`);
+        showAlertModal(`Erro ao carregar admin: ${err.message}`);
     }
 }
 
@@ -1799,7 +1828,7 @@ async function loadAdminIndicadores(setorId) {
 
         renderAdminIndicadores();
     } catch (err) {
-        alert(`Erro ao carregar indicadores: ${err.message}`);
+        showAlertModal(`Erro ao carregar indicadores: ${err.message}`);
     }
 }
 
@@ -1807,7 +1836,7 @@ async function adminCreateSetor() {
     try {
         const nome = document.getElementById('adminSetorNome').value.trim();
         if (!nome) {
-            alert('Informe nome do setor');
+            showAlertModal('Informe nome do setor');
             return;
         }
 
@@ -1821,9 +1850,9 @@ async function adminCreateSetor() {
         document.getElementById('adminSetorNome').value = '';
 
         await loadAdminData();
-        alert('Setor criado');
+        showAlertModal('Setor criado');
     } catch (err) {
-        alert(`Erro ao criar setor: ${err.message}`);
+        showAlertModal(`Erro ao criar setor: ${err.message}`);
     }
 }
 
@@ -1831,7 +1860,7 @@ async function adminUpdateSetor() {
     try {
         const id = document.getElementById('adminSetorId').value;
         if (!id) {
-            alert('Selecione um setor');
+            showAlertModal('Selecione um setor');
             return;
         }
 
@@ -1847,9 +1876,9 @@ async function adminUpdateSetor() {
         await apiPut(`/api/setores/${id}`, { nome, ativo });
         await loadAdminData();
 
-        alert('Setor atualizado');
+        showAlertModal('Setor atualizado');
     } catch (err) {
-        alert(`Erro ao atualizar setor: ${err.message}`);
+        showAlertModal(`Erro ao atualizar setor: ${err.message}`);
     }
 }
 
@@ -1857,7 +1886,7 @@ async function adminDisableSetor() {
     try {
         const id = document.getElementById('adminSetorId').value;
         if (!id) {
-            alert('Selecione um setor');
+            showAlertModal('Selecione um setor');
             return;
         }
 
@@ -1870,9 +1899,9 @@ async function adminDisableSetor() {
         await apiPut(`/api/setores/${id}`, { ativo: 0 });
         await loadAdminData();
 
-        alert('Setor inativado');
+        showAlertModal('Setor inativado');
     } catch (err) {
-        alert(`Erro ao inativar setor: ${err.message}`);
+        showAlertModal(`Erro ao inativar setor: ${err.message}`);
     }
 }
 
@@ -1891,7 +1920,7 @@ async function refreshIndicadorCodigoForSetor(setorId) {
             items = Array.isArray(data) ? data : [];
             adminIndicadoresCache[key] = items;
         } catch (err) {
-            alert(`Erro ao carregar indicadores para codigo: ${err.message}`);
+            showAlertModal(`Erro ao carregar indicadores para codigo: ${err.message}`);
             return;
         }
     }
@@ -2030,11 +2059,11 @@ async function adminCreateIndicador() {
         const responsavel_id = responsavelRaw ? Number(responsavelRaw) : null;
 
         if (!setorId || !codigo || !nome) {
-            alert('Informe setor, codigo e nome');
+            showAlertModal('Informe setor, codigo e nome');
             return;
         }
         if (!unidade) {
-            alert('Informe a unidade');
+            showAlertModal('Informe a unidade');
             return;
         }
 
@@ -2062,9 +2091,9 @@ async function adminCreateIndicador() {
         document.getElementById('adminIndicadorMeta').value = '';
         setSelectValue(document.getElementById('adminIndicadorResponsavel'), '');
 
-        alert('Indicador criado');
+        showAlertModal('Indicador criado');
     } catch (err) {
-        alert(`Erro ao criar indicador: ${err.message}`);
+        showAlertModal(`Erro ao criar indicador: ${err.message}`);
     }
 }
 
@@ -2072,7 +2101,7 @@ async function adminUpdateIndicador() {
     try {
         const id = document.getElementById('adminIndicadorId').value;
         if (!id) {
-            alert('Selecione um indicador');
+            showAlertModal('Selecione um indicador');
             return;
         }
 
@@ -2090,7 +2119,7 @@ async function adminUpdateIndicador() {
             ativo: document.getElementById('adminIndicadorAtivoEdit').checked ? 1 : 0
         };
         if (!body.unidade) {
-            alert('Informe a unidade');
+            showAlertModal('Informe a unidade');
             return;
         }
 
@@ -2105,9 +2134,9 @@ async function adminUpdateIndicador() {
         const setorId = document.getElementById('adminIndicadorSetorEdit').value;
         if (setorId) await loadAdminIndicadores(setorId);
 
-        alert('Indicador atualizado');
+        showAlertModal('Indicador atualizado');
     } catch (err) {
-        alert(`Erro ao atualizar indicador: ${err.message}`);
+        showAlertModal(`Erro ao atualizar indicador: ${err.message}`);
     }
 }
 
@@ -2120,3 +2149,4 @@ async function adminUpdateIndicador() {
 document.addEventListener('DOMContentLoaded', function () {
     tryRestoreSession();
 });
+
