@@ -746,7 +746,7 @@ async function loadSectors() {
 
     try {
         const setoresData = await apiGet('/api/setores');
-        const list = Array.isArray(setoresData)  setoresData : [];
+        const list = Array.isArray(setoresData) ? setoresData : [];
 
         setoresApi = list.map((s, idx) => normalizeSetorFromApi(s, idx));
 
@@ -754,7 +754,7 @@ async function loadSectors() {
         const counts = await Promise.all(
             setoresApi.map(s =>
                 apiGet(`/api/indicadores?setorId=${encodeURIComponent(s.id)}`)
-                    .then(items => ({ id: s.id, count: Array.isArray(items)  items.length : 0 }))
+                    .then(items => ({ id: s.id, count: Array.isArray(items) ? items.length : 0 }))
                     .catch(() => ({ id: s.id, count: 0 }))
             )
         );
@@ -812,7 +812,7 @@ async function loadSectors() {
 async function openSector(setor) {
     try {
         const data = await apiGet(`/api/indicadores?setorId=${encodeURIComponent(setor.id)}`);
-        const indicadores = (Array.isArray(data)  data : []).map(i => normalizeIndicadorFromApi(i));
+        const indicadores = (Array.isArray(data) ? data : []).map(i => normalizeIndicadorFromApi(i));
 
         currentSector = {
             id: setor.id,
@@ -970,7 +970,7 @@ async function loadRejectedDrafts(setorId) {
 
     try {
         const data = await apiGet(`/api/drafts/rejected?setorId=${encodeURIComponent(setorId)}`);
-        const items = Array.isArray(data)  data : [];
+        const items = Array.isArray(data) ? data : [];
         rejectedBody.innerHTML = '';
 
         if (!items.length) {
@@ -1418,8 +1418,8 @@ async function loadManagerData() {
             apiGet('/api/drafts/pending')
         ]);
 
-        renderManagerFuncionarios(Array.isArray(funcionariosData)  funcionariosData : []);
-        renderManagerIndicadores(Array.isArray(pendentesData)  pendentesData : []);
+        renderManagerFuncionarios(Array.isArray(funcionariosData) ? funcionariosData : []);
+        renderManagerIndicadores(Array.isArray(pendentesData) ? pendentesData : []);
     } catch (err) {
         showAlertModal(`Erro ao carregar painel gestor: ${err.message}`);
     }
@@ -1538,8 +1538,8 @@ async function loadAdminData() {
             apiGet('/api/users')
         ]);
 
-        adminState.setores = Array.isArray(setoresData)  setoresData : [];
-        adminState.users = Array.isArray(usersData)  usersData : [];
+        adminState.setores = Array.isArray(setoresData) ? setoresData : [];
+        adminState.users = Array.isArray(usersData) ? usersData : [];
 
         renderAdminSetores();
         renderAdminUsers();
@@ -1842,7 +1842,7 @@ async function loadAdminIndicadores(setorId) {
     try {
         const data = await apiGet(`/api/indicadores?setorId=${encodeURIComponent(setorId)}`);
 
-        adminState.indicadores = Array.isArray(data)  data : [];
+        adminState.indicadores = Array.isArray(data) ? data : [];
         adminIndicadoresCache[String(setorId)] = adminState.indicadores;
 
         renderAdminIndicadores();
@@ -1936,7 +1936,7 @@ async function refreshIndicadorCodigoForSetor(setorId) {
     if (!items) {
         try {
             const data = await apiGet(`/api/indicadores?setorId=${encodeURIComponent(setorId)}`);
-            items = Array.isArray(data)  data : [];
+            items = Array.isArray(data) ? data : [];
             adminIndicadoresCache[key] = items;
         } catch (err) {
             showAlertModal(`Erro ao carregar indicadores para codigo: ${err.message}`);
