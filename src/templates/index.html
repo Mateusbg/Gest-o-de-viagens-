@@ -113,7 +113,7 @@
 
                     <div class="header-content">
                         <h1>Administração</h1>
-                        <p>Usuarios e indicadores</p>
+                        <p>Usuários e indicadores</p>
                     </div>
                 </div>
 
@@ -123,29 +123,29 @@
 
         <div class="admin-container">
 
-            <div class="admin-nav">
-                <button class="btn btn-save admin-tab" onclick="showAdminSection('users')">
-                    Usuarios
+            <div class="admin-nav admin-tabs">
+                <button class="btn btn-save admin-tab" data-admin-section="users" onclick="showAdminSection('users')">
+                    Usuários
                 </button>
-                <button class="btn btn-send admin-tab" onclick="showAdminSection('indicators')">
+                <button class="btn btn-send admin-tab" data-admin-section="indicators" onclick="showAdminSection('indicators')">
                     Indicadores
                 </button>
             </div>
 
             <div class="admin-section" id="adminUsersSection">
-                <h2>Usuarios</h2>
+                <h2>Usuários</h2>
 
-                <div class="admin-subnav">
-                    <button class="btn btn-save admin-tab" onclick="showUsersSection('createUser')">Criar usuario</button>
-                    <button class="btn btn-save admin-tab" onclick="showUsersSection('createSetor')">Criar setor</button>
-                    <button class="btn btn-send admin-tab" onclick="showUsersSection('editSetor')">Editar setor</button>
-                    <button class="btn btn-save admin-tab" onclick="showUsersSection('listUsers')">Lista usuarios</button>
+                <div class="admin-subnav admin-subtabs">
+                    <button class="btn btn-save admin-tab" data-users-section="createUser" onclick="showUsersSection('createUser')">Criar usuário</button>
+                    <button class="btn btn-save admin-tab" data-users-section="createSetor" onclick="showUsersSection('createSetor')">Criar setor</button>
+                    <button class="btn btn-send admin-tab" data-users-section="editSetor" onclick="showUsersSection('editSetor')">Editar setor</button>
+                    <button class="btn btn-save admin-tab" data-users-section="listUsers" onclick="showUsersSection('listUsers')">Lista usuários</button>
                 </div>
 
                 <div class="admin-grid">
 
                     <div class="admin-card" id="adminCreateUserCard">
-                        <h3>Criar usuario</h3>
+                        <h3>Criar usuário</h3>
 
                         <div class="form-group">
                             <label>Nome</label>
@@ -163,7 +163,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Nivel</label>
+                            <label>Nível</label>
                             <select id="adminUserNivel"></select>
                         </div>
 
@@ -172,11 +172,11 @@
                             <input id="adminUserSenha" type="password" placeholder="Senha forte" autocomplete="new-password">
                         </div>
 
-                        <button class="btn btn-save" onclick="adminCreateUser()">Criar usuario</button>
+                        <button class="btn btn-save" onclick="adminCreateUser()">Criar usuário</button>
                     </div>
 
                     <div class="admin-card hidden" id="adminEditUserCard">
-                        <h3>Editar usuario</h3>
+                        <h3>Editar usuário</h3>
 
                         <div class="form-group">
                             <label>ID</label>
@@ -199,7 +199,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Nivel</label>
+                            <label>Nível</label>
                             <select id="adminUserNivelEdit"></select>
                         </div>
 
@@ -259,7 +259,7 @@
                                 <th>ID</th>
                                 <th>Nome</th>
                                 <th>Ativo</th>
-                                <th>Acao</th>
+                                <th>Ação</th>
                             </tr>
                         </thead>
                         <tbody id="adminSetoresBody"></tbody>
@@ -272,8 +272,8 @@
                             <tr>
                                 <th>Nome</th>
                                 <th>Email</th>
-                                <th>Permissao</th>
-                                <th>Acoes</th>
+                                <th>Permissão</th>
+                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody id="adminUsersBody"></tbody>
@@ -284,9 +284,9 @@
             <div class="admin-section hidden" id="adminIndicadoresSection">
                 <h2>Indicadores</h2>
 
-                <div class="admin-subnav">
-                    <button class="btn btn-save admin-tab" onclick="showIndicatorsSection('createIndicador')">Criar indicador</button>
-                    <button class="btn btn-send admin-tab" onclick="showIndicatorsSection('editIndicador')">Editar indicador</button>
+                <div class="admin-subnav admin-subtabs">
+                    <button class="btn btn-save admin-tab" data-indicators-section="createIndicador" onclick="showIndicatorsSection('createIndicador')">Criar indicador</button>
+                    <button class="btn btn-send admin-tab" data-indicators-section="editIndicador" onclick="showIndicatorsSection('editIndicador')">Editar indicador</button>
                 </div>
 
                 <div class="admin-grid">
@@ -300,7 +300,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Codigo</label>
+                            <label>Código</label>
                             <input id="adminIndicadorCodigo" type="text" placeholder="COD01">
                         </div>
 
@@ -321,7 +321,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Responsavel por preenhcer</label>
+                            <label>Responsável por preencher</label>
                             <select id="adminIndicadorResponsavel"></select>
                         </div>
 
@@ -358,7 +358,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Responsavel</label>
+                            <label>Responsável</label>
                             <select id="adminIndicadorResponsavelEdit"></select>
                         </div>
 
@@ -377,14 +377,14 @@
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Codigo</th>
+                                <th>Código</th>
                                 <th>Nome</th>
                                 <th>Tipo</th>
                                 <th>Unidade</th>
                                 <th>Meta</th>
                                 <th>Resp</th>
                                 <th>Ativo</th>
-                                <th>Acao</th>
+                                <th>Ação</th>
                             </tr>
                         </thead>
                         <tbody id="adminIndicadoresBody"></tbody>
@@ -402,7 +402,7 @@
 
                     <div class="header-content">
                         <h1>Painel Gestor</h1>
-                        <p>Funcionarios e indicadores pendentes</p>
+                        <p>Funcionários e indicadores pendentes</p>
                     </div>
                 </div>
 
@@ -411,20 +411,20 @@
         </header>
 
         <div class="admin-container">
-            <div class="admin-nav">
-                <button class="btn btn-save admin-tab" onclick="showManagerSection('funcionarios')">Funcionarios</button>
-                <button class="btn btn-send admin-tab" onclick="showManagerSection('indicadores')">Indicadores</button>
+            <div class="admin-nav admin-tabs">
+                <button class="btn btn-save admin-tab" data-manager-section="funcionarios" onclick="showManagerSection('funcionarios')">Funcionários</button>
+                <button class="btn btn-send admin-tab" data-manager-section="indicadores" onclick="showManagerSection('indicadores')">Indicadores</button>
             </div>
 
             <div class="admin-section" id="managerFuncionariosSection">
-                <h2>Funcionarios</h2>
+                <h2>Funcionários</h2>
                 <div class="admin-table-wrap">
                     <table class="history-table admin-table">
                         <thead>
                             <tr>
                                 <th>Nome</th>
                                 <th>Email</th>
-                                <th>Nivel</th>
+                                <th>Nível</th>
                             </tr>
                         </thead>
                         <tbody id="managerFuncionariosBody"></tbody>
@@ -444,7 +444,7 @@
                                 <th>Periodo</th>
                                 <th>Valor</th>
                                 <th>Status</th>
-                                <th>Acao</th>
+                                <th>Ação</th>
                             </tr>
                         </thead>
                         <tbody id="managerIndicadoresBody"></tbody>
